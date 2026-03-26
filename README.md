@@ -30,6 +30,101 @@ Key principles 核心原则:
 - Real-time risk detection with 3-level severity scoring 实时风险检测，分为 3 级严重程度
 - Automatic reflective first-response (B1) after submission 提交后自动生成反思性首次回复（B1）
 
+### 🎙️ Voice-to-Text Input (ASR) 语音转文字输入
+
+Users can speak directly into the app instead of typing. Audio is recorded in the browser and transcribed via the **OpenAI Whisper API**, with the result automatically populated into the journal or chat input field.
+
+用户可以直接通过语音输入日记或对话内容，无需手动打字。音频在浏览器端录制后，通过 **OpenAI Whisper API** 进行转写，结果自动填入日记或聊天输入框。
+
+**Supported languages 支持语言:** Cantonese (粤语), Mandarin (普通话), English — Whisper large-v3 auto-detects language or can be set to `zh` for Chinese variants.
+
+**How it works 工作流程:**
+
+```
+Browser Microphone 浏览器麦克风
+        ↓  MediaRecorder API (WebM/WAV)
+POST /api/speech/transcribe
+        ↓
+backend/app/routers/speech.py
+        ↓
+OpenAI Whisper API  (model: whisper-1)
+        ↓
+Transcribed text → Auto-filled into journal / chat input
+转写文字 → 自动填入日记 / 对话输入框
+```
+
+**Backend endpoint 后端接口:**
+
+```python
+# backend/app/routers/speech.py
+from fastapi import APIRouter, UploadFile, File
+from openai import OpenAI
+import tempfile, os
+
+router = APIRouter(prefix="/speech", tags=["speech"])
+client = OpenAI()  # uses OPENAI_API_KEY from .env
+
+@router.post("/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+    try:
+        with open(tmp_path, "rb") as audio:
+            result = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio,
+                language="zh",   # supports Cantonese & Mandarin; omit for auto-detect
+                response_format="text"
+            )
+        return {"text": result}
+    finally:
+        os.unlink(tmp_path)
+```
+
+Register the router in `backend/app/main.py`:
+```python
+from app.routers import speech
+app.include_router(speech.router, prefix="/api")
+```
+
+**Frontend recording snippet 前端录音代码:**
+
+```typescript
+const startRecording = async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const mediaRecorder = new MediaRecorder(stream);
+  const chunks: BlobPart[] = [];
+
+  mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+  mediaRecorder.onstop = async () => {
+    const blob = new Blob(chunks, { type: "audio/webm" });
+    const formData = new FormData();
+    formData.append("file", blob, "recording.webm");
+
+    const res = await fetch("/api/speech/transcribe", {
+      method: "POST",
+      body: formData,
+    });
+    const { text } = await res.json();
+    setInputValue(text); // auto-fill into journal or chat input
+  };
+
+  mediaRecorder.start();
+  setTimeout(() => mediaRecorder.stop(), 5000); // 5s default; replace with button-stop logic
+};
+```
+
+**ASR tool comparison 语音识别工具对比:**
+
+| Option 方案 | Pros 优点 | Cons 缺点 |
+|---|---|---|
+| **OpenAI Whisper API** ✅ (recommended) | Zero-setup, strong Cantonese support, shares existing API key | Per-minute cost |
+| Local `openai-whisper` | Free, offline | Requires GPU / large memory |
+| Groq Whisper API | Large free tier, very fast | Separate account needed |
+
+---
+
 ### Multi-Stage Therapeutic Conversation 多阶段治疗对话
 
 The app uses a **3-stage gated therapy model** built on evidence-based approaches:
@@ -96,6 +191,7 @@ Risk-level classification on every entry:
 │  ┌──────────────┐  ┌───────────────┐  ┌─────────────┐ │
 │  │ JournalPanel │  │   ChatPanel   │  │InsightsPage │ │
 │  └──────────────┘  └───────────────┘  └─────────────┘ │
+│  🎙️ MediaRecorder → POST /api/speech/transcribe        │
 │         ▲ Vite Proxy (dev) / Nginx (prod)              │
 └─────────┬───────────────────────────────────────────────┘
           │ HTTP REST API  /api/*
@@ -105,16 +201,20 @@ Risk-level classification on every entry:
 │              http://localhost:8000                      │
 │  ┌─────────────────────────────────────────────────────┐│
 │  │             TherapyAgent (therapy_agent.py)          ││
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐         ││
-│  │  │ PreCheck │  │ Journal  │  │ Insights │         ││
-│  │  │  Router  │  │  Router  │  │  Router  │         ││
-│  │  └──────────┘  └──────────┘  └──────────┘         ││
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐ ┌──────┐││
+│  │  │ PreCheck │  │ Journal  │  │ Insights │ │Speech│││
+│  │  │  Router  │  │  Router  │  │  Router  │ │Router│││
+│  │  └──────────┘  └──────────┘  └──────────┘ └──────┘││
 │  └─────────────────────────────────────────────────────┘│
 │            │ Structured LLM calls via OpenRouter        │
 │            ▼                                            │
 │  ┌─────────────────────────────────────────────────────┐│
 │  │      OpenRouter API → Nvidia Nemotron 3 Super       ││
 │  │   https://openrouter.ai/api/v1/chat/completions     ││
+│  └─────────────────────────────────────────────────────┘│
+│  ┌─────────────────────────────────────────────────────┐│
+│  │         OpenAI Whisper API (ASR / Speech)           ││
+│  │      POST /api/speech/transcribe → text output      ││
 │  └─────────────────────────────────────────────────────┘│
 │            │ SQLAlchemy ORM                             │
 │            ▼                                            │
@@ -138,6 +238,7 @@ Risk-level classification on every entry:
 | Backend 后端 | FastAPI (Python 3.10+) |
 | LLM | OpenRouter API → Nvidia Nemotron 3 Super 120B (free tier 免费版) |
 | Model ID 模型 ID | `nvidia/nemotron-3-super-120b-a12b:free` |
+| **ASR / Speech 语音识别** | **OpenAI Whisper API (`whisper-1`) — Cantonese & Mandarin support** |
 | Database 数据库 | SQLite + SQLAlchemy ORM |
 | Data Validation 数据验证 | Pydantic v2 |
 | Prompt Engineering 提示工程 | JSON Schema structured output + Jinja2 templates |
@@ -150,6 +251,7 @@ Risk-level classification on every entry:
 - **Node.js** 18+
 - **Python** 3.10+
 - **OpenRouter API Key** — get one free at [openrouter.ai](https://openrouter.ai) 在 openrouter.ai 免费获取
+- **OpenAI API Key** — required for Whisper ASR feature 用于语音转文字功能
 
 ### 1. Clone the Repository 克隆仓库
 
@@ -168,7 +270,9 @@ source .venv/bin/activate      # Windows: .venv\Scripts\activate
 
 pip install -r requirements.txt
 
+# Add both keys to .env
 echo "OPENROUTER_API_KEY=sk-or-v1-your-key-here" > .env
+echo "OPENAI_API_KEY=sk-your-openai-key-here" >> .env
 
 uvicorn app.main:app --reload --port 8000
 ```
@@ -247,7 +351,8 @@ mindjournal-ai/
     │   │   ├── journal.py
     │   │   ├── insights.py
     │   │   ├── chat.py
-    │   │   └── chat_continue.py
+    │   │   ├── chat_continue.py
+    │   │   └── speech.py          ← ASR / Voice-to-Text
     │   └── prompts/
     │       ├── prompt_a_role.txt
     │       ├── prompt_b1.txt
@@ -283,6 +388,22 @@ mindjournal-ai/
   "confidence": 0.87,
   "reasons": "User expresses high emotional intensity and is seeking validation..."
 }
+```
+
+---
+
+### `POST /api/speech/transcribe` 🎙️
+
+Accepts a browser-recorded audio file and returns transcribed text via Whisper.
+接收浏览器录制的音频文件，通过 Whisper 返回转写文字。
+
+**Request 请求:** `multipart/form-data`
+```
+file: <audio blob — WebM or WAV>
+```
+**Response 响应:**
+```json
+{ "text": "今日工作好辛苦，好攰..." }
 ```
 
 ---
@@ -433,6 +554,7 @@ server {
 | `OPENROUTER_API_KEY` | *(required 必填)* | Your OpenRouter API key 您的 OpenRouter API 密钥 |
 | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | OpenRouter base URL OpenRouter 基础 URL |
 | `NEMOTRON_MODEL` | `nvidia/nemotron-3-super-120b-a12b:free` | Model identifier 模型标识符 |
+| `OPENAI_API_KEY` | *(required for ASR 语音功能必填)* | OpenAI key for Whisper transcription 用于 Whisper 语音转文字 |
 | `DATABASE_URL` | `sqlite:///./mindjournal.db` | Database connection string 数据库连接字符串 |
 
 ---
