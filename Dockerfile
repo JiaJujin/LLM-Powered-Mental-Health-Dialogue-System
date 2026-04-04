@@ -26,6 +26,5 @@ COPY backend/ /app/backend/
 ENV PORT=8000
 EXPOSE 8000
 
-# Change to backend dir and run
-WORKDIR /app/backend
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run from /app so module path "backend.app.main" resolves correctly
+CMD ["sh", "-c", "cd /app && uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
