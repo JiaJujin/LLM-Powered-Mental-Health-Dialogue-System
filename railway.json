@@ -8,11 +8,14 @@
           "nixPkgs": ["python3", "nodejs_20"]
         },
         "install": {
-          "commands": [
+          "cmds": [
             "cd frontend && npm install && npm run build",
             "cd backend && pip install -r requirements.txt"
           ]
         }
+      },
+      "start": {
+        "cmd": "cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT"
       }
     }
   },
@@ -20,6 +23,7 @@
     "numReplicas": 1,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
-    "runtimeEnv": {}
+    "runtimeEnv": {},
+    "startCommand": "cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT"
   }
 }
