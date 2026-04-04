@@ -10,8 +10,6 @@ RUN apt-get update && apt-get install -y curl && \
 
 # Copy requirements first (for Docker layer caching)
 COPY backend/requirements.txt /app/backend/requirements.txt
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
 # Copy and build frontend
@@ -28,5 +26,6 @@ COPY backend/ /app/backend/
 ENV PORT=8000
 EXPOSE 8000
 
-# Run uvicorn
+# Change to backend dir and run
+WORKDIR /app/backend
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
