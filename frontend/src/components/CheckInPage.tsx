@@ -29,7 +29,7 @@ export default function CheckInPage({ anonId, onSuccess }: Props) {
       setResult(data);
       onSuccess(data);
     } catch (error) {
-      alert("Pre-check 提交失败");
+      alert("Pre-check submission failed.");
       console.error(error);
     } finally {
       setLoading(false);

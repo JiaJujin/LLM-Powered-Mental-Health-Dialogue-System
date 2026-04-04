@@ -8,6 +8,117 @@
 
 ---
 
+## 本地开发一键启动
+
+### Windows 用户
+
+打开 **PowerShell**，cd 到项目根目录（`mindjournal-ai` 文件夹），执行：
+
+```powershell
+.\scripts\start_dev.ps1
+```
+
+> **注意**：如果是首次运行，脚本会提示你输入智谱 API Key，按提示填入即可（只填一次）。
+
+### Mac / Linux 用户
+
+```bash
+chmod +x scripts/start_dev.sh
+./scripts/start_dev.sh
+```
+
+> 首次运行若提示权限不够，执行 `chmod +x scripts/start_dev.sh` 后重试。
+
+### 正常启动后
+
+| 服务 | 地址 |
+|------|------|
+| **后端 API 文档（Swagger）** | http://localhost:8000/docs |
+| **前端页面（开发）** | http://localhost:5173/ |
+
+> 关闭时直接按 `Ctrl+C` 或关掉终端窗口即可停止所有服务。
+
+---
+
+## Quick Start 快速启动
+
+### 方法一：一键启动（推荐）
+
+双击运行以下文件，会自动启动前后端：
+
+```
+scripts\一键启动.bat
+```
+
+这会自动：
+1. 创建/激活 Python 虚拟环境
+2. 安装后端依赖
+3. 启动后端服务器（端口 8000）
+4. 启动前端开发服务器（端口 5173）
+5. 提示你打开浏览器
+
+### 方法二：手动启动（两个终端）
+
+#### 第一步：启动后端
+
+打开**终端 1**，依次运行：
+
+```bash
+cd "c:\Users\86136\Desktop\LLM心理\mindjournal-ai\backend"
+.venv\Scripts\activate
+uvicorn app.main:app --reload --port 8000 --host 127.0.0.1
+```
+
+验证后端是否启动成功：
+- 打开浏览器访问 http://127.0.0.1:8000/docs
+- 或直接访问 http://127.0.0.1:8000/api/health，应该返回 `{"status":"ok",...}`
+
+#### 第二步：启动前端
+
+打开**终端 2**，依次运行：
+
+```bash
+cd "c:\Users\86136\Desktop\LLM心理\mindjournal-ai\frontend"
+npm install     # 首次运行需要，之后跳过
+npm run dev
+```
+
+#### 第三步：打开应用
+
+在浏览器（Chrome 或 Edge，**不要用 Cursor 内置预览**）中打开：
+
+```
+http://127.0.0.1:5173
+```
+
+### 方法三：只启动后端（使用内置前端）
+
+如果不想安装 Node.js，也可以只启动后端，它会直接提供内置的已构建前端：
+
+```bash
+cd "c:\Users\86136\Desktop\LLM心理\mindjournal-ai\backend"
+.venv\Scripts\activate
+uvicorn app.main:app --reload --port 8000 --host 127.0.0.1
+```
+
+然后在浏览器打开 http://127.0.0.1:8000
+
+### 验证清单
+
+- 后端运行中： http://127.0.0.1:8000/api/health → 返回 `{"status":"ok"}`
+- Swagger 文档： http://127.0.0.1:8000/docs
+- 前端页面： http://127.0.0.1:5173
+
+### 最小测试流程
+
+1. 打开 http://127.0.0.1:5173
+2. 关闭 Precheck 弹窗（跳过也可以）
+3. 在左侧日记面板输入文字，如"今天天气很好"
+4. 点击发送按钮
+5. 右侧对话区域会显示 AI 回复
+
+---
+
 ## Overview 概览
 
 MindJournal AI is a privacy-first mental wellness companion that helps users process their thoughts through guided journaling and multi-stage AI therapeutic conversations. The app uses the **Nvidia Nemotron 3 Super** model via the OpenRouter API to deliver structured, evidence-informed psychological support without replacing professional care.

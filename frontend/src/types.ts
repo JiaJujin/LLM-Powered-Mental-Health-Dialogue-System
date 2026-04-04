@@ -1,6 +1,8 @@
-export type AppTab = "chat-journal" | "insights" | "journal-history" | "journal-detail";
+export type AppTab = "chat-journal" | "insights" | "journal-history" | "journal-detail" | "support" | "my-support" | "chat";
 
 export type HistoryView = "list" | "detail";
+
+export type JournalInputMode = "text" | "voice" | "image";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -11,6 +13,8 @@ export interface ChatRequest {
   anon_id: string;
   message: string;
   history: ChatMessage[];
+  diary_content?: string;
+  assigned_role?: string;
 }
 
 export interface ChatResponse {
@@ -37,6 +41,10 @@ export interface JournalRequest {
   mood?: string;
   weather?: string;
   entry_date?: string;  // Format: YYYY-MM-DD
+  source_type?: "text" | "voice" | "image";
+  original_input_text?: string;
+  source_file_path?: string;
+  input_metadata?: Record<string, unknown>;
 }
 
 export interface CrisisResult {
@@ -84,6 +92,21 @@ export interface InsightsResponse {
   affirmation: string;
   focus_points: string[];
   analysis_history: string[];
+  // Cache freshness fields
+  is_from_cache: boolean;
+  cached_at: string | null;
+  source_entry_count: number;
+  latest_entry_id: number | null;
+  is_fresh: boolean;
+}
+
+export interface CachedInsightsResponse {
+  has_cache: boolean;
+  is_fresh: boolean;
+  cached_at: string | null;
+  source_entry_count: number;
+  latest_entry_id: number | null;
+  analysis: InsightsResponse | null;
 }
 
 // ========== Therapy Session Types ==========
@@ -134,6 +157,8 @@ export interface JournalHistoryItem {
   weather?: string;
   preview: string;
   status?: "draft" | "completed";
+  source_type?: "text" | "voice" | "image";
+  created_at?: string;
 }
 
 export interface JournalHistoryResponse {
@@ -152,6 +177,8 @@ export interface JournalEntryResponse {
   risk_level?: number;
   created_at: string;
   status?: "draft" | "completed";
+  source_type?: "text" | "voice" | "image";
+  original_input_text?: string;
 }
 
 export interface JournalFilterParams {
@@ -169,4 +196,63 @@ export interface JournalChatMessage {
 export interface JournalDetailResponse {
   entry: JournalEntryResponse;
   chat_history: JournalChatMessage[];
+}
+
+// ========== Multimodal Types ==========
+
+export interface TranscribeResponse {
+  transcript: string;
+  language?: string;
+  duration_seconds?: number;
+  segments?: Array<{
+    start: number;
+    end: number;
+    text: string;
+  }>;
+  warnings?: string[];
+}
+
+export interface OCRDiaryResponse {
+  raw_text: string;
+  clean_text: string;
+  confidence?: number;
+  warnings?: string[];
+}
+
+export interface JournalSubmitParams {
+  content: string;
+  title?: string;
+  mood?: string;
+  weather?: string;
+  entry_date?: string;
+  source_type?: "text" | "voice" | "image";
+  original_input_text?: string;
+  source_file_path?: string;
+  input_metadata?: Record<string, unknown>;
+}
+
+// ========== Chat Page Types ==========
+
+export interface ChatSessionListItem {
+  session_id: string;
+  title?: string | null;
+  last_message_preview?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatSessionDetail {
+  session_id: string;
+  anon_id: string;
+  title?: string | null;
+  diary_content?: string | null;
+  messages: ChatSessionMessage[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatSessionMessage {
+  role: "user" | "assistant";
+  content: string;
+  created_at?: string;
 }

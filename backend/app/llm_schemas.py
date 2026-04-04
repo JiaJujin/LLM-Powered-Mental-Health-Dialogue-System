@@ -140,19 +140,23 @@ B3_SCHEMA = {
 INSIGHTS_SCHEMA = {
     "type": "object",
     "properties": {
-        "summary": {"type": "string"},
-        "emotional_patterns": {"type": "string"},
-        "common_themes": {"type": "string"},
-        "growth_observations": {"type": "string"},
-        "recommendations": {"type": "string"},
-        "affirmation": {"type": "string"},
+        # NOTE: backend extracts as llm_summary — key name must match insights.py .get() calls
+        "summary": {"type": "string", "minLength": 1},
+        "llm_summary": {"type": "string", "minLength": 1},
+        "emotional_patterns": {"type": "string", "minLength": 1},
+        "common_themes": {"type": "string", "minLength": 1},
+        "growth_observations": {"type": "string", "minLength": 1},
+        "recommendations": {"type": "string", "minLength": 1},
+        "affirmation": {"type": "string", "minLength": 1},
         "focus_points": {
             "type": "array",
-            "items": {"type": "string"}
+            "items": {"type": "string", "minLength": 1},
+            "minItems": 1
         }
     },
     "required": [
         "summary",
+        "llm_summary",
         "emotional_patterns",
         "common_themes",
         "growth_observations",

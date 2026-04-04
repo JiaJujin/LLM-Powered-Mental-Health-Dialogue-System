@@ -131,20 +131,20 @@ export default function JournalDetailPage({ anonId, entryId, onBack }: Props) {
               {chat_history.map((msg, idx) => (
                 <div
                   key={idx}
-                  className={`chat-message ${msg.role === "user" ? "user" : "assistant"}`}
+                  className={`detail-chat-msg ${msg.role === "user" ? "detail-chat-msg--user" : "detail-chat-msg--assistant"}`}
                 >
-                  <div className="chat-message-icon">
+                  <div className="detail-chat-msg__icon">
                     {msg.role === "user" ? (
                       <User size={16} />
                     ) : (
                       <Bot size={16} />
                     )}
                   </div>
-                  <div className="chat-message-content">
-                    <div className="chat-message-label">
+                  <div className="detail-chat-msg__content">
+                    <div className="detail-chat-msg__label">
                       {msg.role === "user" ? "You" : "AI"}
                     </div>
-                    <div className="chat-message-text">
+                    <div className="detail-chat-msg__text">
                       {stripHtml(msg.content)}
                     </div>
                   </div>

@@ -1,24 +1,27 @@
 import { useState, useRef, useEffect } from "react";
-import { BookOpen, ChevronDown, ChevronLeft, ChevronRight, Calendar, X } from "lucide-react";
-import type { JournalResponse, JournalEntryResponse } from "../types";
+import {
+  BookOpen,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  X,
+  Mic,
+  MicOff,
+  Paperclip,
+  ImageIcon,
+  RotateCcw,
+  CheckCircle2,
+} from "lucide-react";
+import type { JournalEntryResponse } from "../types";
+import { ocrDiaryImage, fetchTodayJournalEntry } from "../api";
+import { useVoiceInput } from "../hooks/useVoiceInput";
+import { checkAndReportCrisis } from "../utils/crisisCheck";
 import ConversationView from "./ConversationView";
 
-interface Props {
-  onSubmit: (payload: {
-    content: string;
-    mood?: string;
-    weather?: string;
-    title?: string;
-    entry_date?: string;
-  }) => Promise<void> | void;
-  lastResult: JournalResponse | null;
-  anonId: string;
-  onHistoryClick: () => void;
-  selectedEntry: JournalEntryResponse | null;
-  onClearSelection: () => void;
-}
-
-// Mood options with emoji
+// -----------------------------------------------------------------------
+// Mood & Weather Options
+// -----------------------------------------------------------------------
 const MOOD_OPTIONS = [
   { value: "Happy", label: "😊 Happy" },
   { value: "Calm", label: "😌 Calm" },
@@ -29,7 +32,6 @@ const MOOD_OPTIONS = [
   { value: "Grateful", label: "🙏 Grateful" },
 ];
 
-// Weather options with emoji
 const WEATHER_OPTIONS = [
   { value: "Warm", label: "☀️ Warm" },
   { value: "Hot", label: "🔥 Hot" },
@@ -40,7 +42,9 @@ const WEATHER_OPTIONS = [
   { value: "Cool", label: "🌬️ Cool" },
 ];
 
-// Reusable styled dropdown component
+// -----------------------------------------------------------------------
+// Styled Select Dropdown
+// -----------------------------------------------------------------------
 function StyledSelect({
   value,
   onChange,
@@ -101,7 +105,9 @@ function StyledSelect({
   );
 }
 
-// Full Calendar Date Picker Component
+// -----------------------------------------------------------------------
+// Calendar Date Picker
+// -----------------------------------------------------------------------
 function CalendarDatePicker({
   value,
   onChange,
@@ -141,9 +147,7 @@ function CalendarDatePicker({
     const month = date.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDay = firstDay.getDay();
-    return { daysInMonth, startingDay };
+    return { daysInMonth: lastDay.getDate(), startingDay: firstDay.getDay() };
   };
 
   const { daysInMonth, startingDay } = getDaysInMonth(viewDate);
@@ -153,13 +157,8 @@ function CalendarDatePicker({
   ];
   const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
-  const goToPrevMonth = () => {
-    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
-  };
-
-  const goToNextMonth = () => {
-    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
-  };
+  const goToPrevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
+  const goToNextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
 
   const handleDateSelect = (day: number) => {
     const selectedDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
@@ -203,11 +202,9 @@ function CalendarDatePicker({
           </div>
 
           <div className="calendar-days">
-            {/* Empty cells for days before the first of month */}
             {Array.from({ length: startingDay }).map((_, i) => (
               <div key={`empty-${i}`} className="calendar-day empty" />
             ))}
-            {/* Days of the month */}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
               const currentDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
@@ -233,13 +230,97 @@ function CalendarDatePicker({
   );
 }
 
+// -----------------------------------------------------------------------
+// Voice Input inline (using shared hook)
+// -----------------------------------------------------------------------
+function VoiceInputInline({
+  isRecording,
+  isTranscribing,
+  interimTranscript,
+  error,
+  onToggle,
+}: {
+  isRecording: boolean;
+  isTranscribing: boolean;
+  interimTranscript: string;
+  error: string | null;
+  onToggle: () => void;
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        className={`toolbar-btn mic-btn ${isRecording ? "recording" : ""} ${isTranscribing ? "transcribing" : ""}`}
+        title={isRecording ? "Stop recording" : "Start voice recording"}
+        onClick={onToggle}
+        disabled={isTranscribing}
+      >
+        {isRecording || isTranscribing ? (
+          <span className="mic-icon-wrapper">
+            <MicOff size={20} />
+            {isRecording && <span className="recording-dot" />}
+          </span>
+        ) : (
+          <Mic size={20} />
+        )}
+      </button>
+      {error && <div className="input-error">{error}</div>}
+    </>
+  );
+}
+
+// -----------------------------------------------------------------------
+// Main JournalPanel Component
+// -----------------------------------------------------------------------
+interface SubmitMeta {
+  source_type: "text" | "voice" | "image";
+  original_input_text: string;
+  source_file_path?: string;
+  input_metadata: Record<string, unknown>;
+}
+
+interface Props {
+  onSubmit: (payload: {
+    content: string;
+    mood?: string;
+    weather?: string;
+    title?: string;
+    entry_date?: string;
+  }) => Promise<void> | void;
+  onSubmitWithMeta?: (payload: {
+    content: string;
+    mood?: string;
+    weather?: string;
+    title?: string;
+    entry_date?: string;
+    source_type: "text" | "voice" | "image";
+    original_input_text: string;
+    source_file_path?: string;
+    input_metadata?: Record<string, unknown>;
+  }) => Promise<void> | void;
+  lastResult: import("../types").JournalResponse | null;
+  anonId: string;
+  onHistoryClick: () => void;
+  selectedEntry: JournalEntryResponse | null;
+  onClearSelection: () => void;
+  /** Today's date string (YYYY-MM-DD) — used to fetch existing entry on mount */
+  today?: string;
+  /** External date signal: when set, load entry for that date */
+  writeDate?: string;
+  onClearWriteDate?: () => void;
+}
+
 export default function JournalPanel({
   onSubmit,
+  onSubmitWithMeta,
   lastResult,
   anonId,
   onHistoryClick,
   selectedEntry,
   onClearSelection,
+  today = new Date().toISOString().split("T")[0],
+  writeDate,
+  onClearWriteDate,
 }: Props) {
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
@@ -249,8 +330,213 @@ export default function JournalPanel({
     new Date().toISOString().split("T")[0]
   );
   const [loading, setLoading] = useState(false);
+  const [draftMeta, setDraftMeta] = useState<Partial<SubmitMeta>>({});
+  const [showSavedToast, setShowSavedToast] = useState(false);
+  const [isViewingPastEntry, setIsViewingPastEntry] = useState(false);
 
-  // If viewing a selected entry (from history), show read-only mode
+  // ---- Image preview state ----
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageName, setImageName] = useState<string>("");
+  const [ocring, setOcring] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ---- Voice input via shared hook ----
+  const {
+    isRecording,
+    isTranscribing,
+    interimTranscript,
+    accumulatedTranscript,
+    recordingTime,
+    error: voiceError,
+    toggleRecording,
+  } = useVoiceInput({
+    onFinal: (text) => {
+      const newContent = content.trim() ? `${content.trim()}\n${text}` : text;
+      setContent(newContent);
+      setDraftMeta({
+        source_type: "voice",
+        original_input_text: text,
+        input_metadata: { source_type: "voice", backend: "webspeech" },
+      });
+    },
+    onError: () => {},
+  });
+
+  // ---- Crisis detection: debounced check on textarea change ----
+  const crisisDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    // Clean up any pending timer when content changes
+    if (crisisDebounceRef.current) {
+      clearTimeout(crisisDebounceRef.current);
+    }
+    // Only block completely empty input — allow short Chinese crisis phrases
+    if (!content.trim()) return;
+
+    crisisDebounceRef.current = setTimeout(() => {
+      console.log("[CRISIS] diary sending", content);
+      checkAndReportCrisis(content, "diary", anonId);
+    }, 2000);
+
+    return () => {
+      if (crisisDebounceRef.current) {
+        clearTimeout(crisisDebounceRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, anonId]);
+
+  // ---- Load today's existing entry on mount ----
+  useEffect(() => {
+    if (!anonId || !today) return;
+    let cancelled = false;
+    (async () => {
+      const entry = await fetchTodayJournalEntry(anonId, today);
+      if (cancelled) return;
+      if (entry && entry.content) {
+        setContent(entry.content);
+        setTitle(entry.title ?? "");
+        setMood(entry.mood ?? "");
+        setWeather(entry.weather ?? "");
+        if (entry.entry_date) setEntryDate(entry.entry_date);
+      }
+    })();
+    return () => { cancelled = true; };
+    // Only run once on mount — don't re-run when entryDate changes mid-session
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anonId, today]);
+
+  // ---- Load entry when writeDate (from History navigation) changes ----
+  useEffect(() => {
+    if (!writeDate) return;
+    let cancelled = false;
+    (async () => {
+      const entry = await fetchTodayJournalEntry(anonId, writeDate);
+      if (cancelled) return;
+      setEntryDate(writeDate);
+      if (entry && entry.content) {
+        setContent(entry.content);
+        setTitle(entry.title ?? "");
+        setMood(entry.mood ?? "");
+        setWeather(entry.weather ?? "");
+        if (entry.entry_date) setEntryDate(entry.entry_date);
+        setIsViewingPastEntry(writeDate !== new Date().toISOString().split("T")[0]);
+      } else {
+        // No entry for this date — clear form
+        setContent("");
+        setTitle("");
+        setMood("");
+        setWeather("");
+        setDraftMeta({});
+        removeImage();
+        setIsViewingPastEntry(writeDate !== new Date().toISOString().split("T")[0]);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [writeDate]);
+
+  // Helper: load entry for a given date (used when user picks a date in the picker)
+  const loadEntryForDate = async (date: string) => {
+    let cancelled = false;
+    const entry = await fetchTodayJournalEntry(anonId, date);
+    if (cancelled) return;
+    if (entry && entry.content) {
+      setContent(entry.content);
+      setTitle(entry.title ?? "");
+      setMood(entry.mood ?? "");
+      setWeather(entry.weather ?? "");
+      if (entry.entry_date) setEntryDate(entry.entry_date);
+      setIsViewingPastEntry(false);
+    } else {
+      setContent("");
+      setTitle("");
+      setMood("");
+      setWeather("");
+      setDraftMeta({});
+      removeImage();
+      setIsViewingPastEntry(date !== new Date().toISOString().split("T")[0]);
+    }
+  };
+
+  // ---- Format time ----
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+    const s = (seconds % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
+  // ---- Image upload / OCR ----
+  const processImage = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setOcrError("Please upload an image file (JPG, PNG, or WEBP).");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setOcrError("Image is too large. Maximum size is 10 MB.");
+      return;
+    }
+    setOcrError(null);
+    setImagePreview(URL.createObjectURL(file));
+    setImageName(file.name);
+
+    setOcring(true);
+    try {
+      const result = await ocrDiaryImage(file, file.name);
+      const text = result.clean_text || result.raw_text || "";
+      if (text.trim()) {
+        const newContent = content.trim() ? `${content.trim()}\n${text}` : text;
+        setContent(newContent);
+        setDraftMeta({
+          source_type: "image",
+          original_input_text: result.raw_text || text,
+          input_metadata: {
+            source_type: "image",
+            confidence: result.confidence,
+            original_filename: file.name,
+          },
+        });
+      } else {
+        setOcrError("No text was detected in the image. You can describe the image manually in the text box.");
+      }
+    } catch {
+      setOcrError("Image recognition is currently unavailable. You can describe the image manually in the text box.");
+    } finally {
+      setOcring(false);
+    }
+  };
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processImage(file);
+  };
+
+  const handleImageDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) processImage(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const removeImage = () => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImagePreview(null);
+    setImageName("");
+    setOcrError(null);
+  };
+
+  // ---- Cleanup on unmount ----
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
+  // ---- Read-only mode for selected entry ----
   if (selectedEntry) {
     return (
       <div className="journal-panel">
@@ -269,52 +555,109 @@ export default function JournalPanel({
             <span className="entry-date">
               {selectedEntry.entry_date
                 ? new Date(selectedEntry.entry_date).toLocaleDateString("en-US", {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
+                    weekday: "long", month: "long", day: "numeric", year: "numeric",
                   })
                 : new Date(selectedEntry.created_at).toLocaleDateString("en-US", {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
+                    weekday: "long", month: "long", day: "numeric", year: "numeric",
                   })}
             </span>
             {selectedEntry.mood && <span className="entry-mood">{selectedEntry.mood}</span>}
             {selectedEntry.weather && <span className="entry-weather">{selectedEntry.weather}</span>}
+            {selectedEntry.source_type && selectedEntry.source_type !== "text" && (
+              <span className="entry-source-type">{selectedEntry.source_type}</span>
+            )}
           </div>
 
           {selectedEntry.title && <h3 className="entry-title">{selectedEntry.title}</h3>}
-
           <div className="entry-content">{selectedEntry.content}</div>
         </div>
       </div>
     );
   }
 
+  // ---- Submit ----
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim()) return;
 
     setLoading(true);
     try {
-      await onSubmit({
-        content,
-        mood,
-        weather,
-        title: title || undefined,
-        entry_date: entryDate,
-      });
-      // Clear form after successful submission
-      setContent("");
-      setTitle("");
-      setMood("");
-      setWeather("");
-      setEntryDate(new Date().toISOString().split("T")[0]);
+      if (onSubmitWithMeta && draftMeta.source_type && draftMeta.source_type !== "text") {
+        await onSubmitWithMeta({
+          content,
+          mood,
+          weather,
+          title: title || undefined,
+          entry_date: entryDate,
+          source_type: draftMeta.source_type,
+          original_input_text: draftMeta.original_input_text || content,
+          source_file_path: draftMeta.source_file_path,
+          input_metadata: draftMeta.input_metadata,
+        });
+      } else {
+        await onSubmit({
+          content,
+          mood,
+          weather,
+          title: title || undefined,
+          entry_date: entryDate,
+        });
+      }
+
+      // Fire crisis check (non-blocking, silent on failure)
+      console.log("[CRISIS] diary sending", content);
+      checkAndReportCrisis(content, "diary", anonId);
+
+      setShowSavedToast(true);
+      setTimeout(() => setShowSavedToast(false), 2000);
+      // If we were viewing a past entry, after saving switch back to today
+      if (isViewingPastEntry) {
+        setIsViewingPastEntry(false);
+        setEntryDate(new Date().toISOString().split("T")[0]);
+        setContent("");
+        setTitle("");
+        setMood("");
+        setWeather("");
+        setDraftMeta({});
+        removeImage();
+        onClearWriteDate?.();
+      } else {
+        // Reset form for new entry (today's date)
+        setContent("");
+        setTitle("");
+        setMood("");
+        setWeather("");
+        setEntryDate(new Date().toISOString().split("T")[0]);
+        setDraftMeta({});
+        removeImage();
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleNewEntry = () => {
+    setContent("");
+    setTitle("");
+    setMood("");
+    setWeather("");
+    setEntryDate(new Date().toISOString().split("T")[0]);
+    setDraftMeta({});
+    removeImage();
+    setIsViewingPastEntry(false);
+    onClearWriteDate?.();
+  };
+
+  const handleBackToToday = () => {
+    setIsViewingPastEntry(false);
+    setEntryDate(new Date().toISOString().split("T")[0]);
+    setContent("");
+    setTitle("");
+    setMood("");
+    setWeather("");
+    setDraftMeta({});
+    removeImage();
+    onClearWriteDate?.();
   };
 
   const handleSaveDraft = () => {
@@ -328,10 +671,32 @@ export default function JournalPanel({
           <BookOpen size={20} />
           <h2>New Entry</h2>
         </div>
-        <button className="btn-past-entries" onClick={onHistoryClick}>
-          Past Entries
-        </button>
+        <div className="header-actions">
+          <button className="btn-new-entry" onClick={handleNewEntry} title="Start a new entry for today">
+            <RotateCcw size={14} />
+            New Entry
+          </button>
+          <button className="btn-past-entries" onClick={onHistoryClick}>
+            Past Entries
+          </button>
+        </div>
       </div>
+
+      {isViewingPastEntry && (
+        <div className="viewing-past-banner">
+          <span>Viewing entry from {entryDate ? new Date(entryDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : ""}</span>
+          <button className="btn-back-today" onClick={handleBackToToday}>
+            Back to today
+          </button>
+        </div>
+      )}
+
+      {showSavedToast && (
+        <div className="saved-toast">
+          <CheckCircle2 size={16} />
+          Entry saved
+        </div>
+      )}
 
       <form className="journal-form" onSubmit={handleSubmit}>
         {/* Date and Title Row */}
@@ -339,7 +704,7 @@ export default function JournalPanel({
           <CalendarDatePicker
             label="Date"
             value={entryDate}
-            onChange={setEntryDate}
+            onChange={loadEntryForDate}
           />
           <div className="input-group title-group">
             <label className="input-label">Title</label>
@@ -371,32 +736,132 @@ export default function JournalPanel({
           />
         </div>
 
-        {/* Journal Content */}
+        {/* Content Group */}
         <div className="input-group content-group">
-          <label className="input-label">Write your thoughts</label>
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handleImageFileChange}
+            disabled={ocring}
+          />
+
+          {/* Image Preview (shown above textarea when image is loaded) */}
+          {imagePreview && (
+            <div
+              className="image-preview-bar"
+              onDrop={handleImageDrop}
+              onDragOver={handleDragOver}
+            >
+              <div className="image-preview-thumb-wrapper">
+                <img src={imagePreview} alt="Attached" className="image-preview-thumb" />
+                <button
+                  type="button"
+                  className="image-remove-btn"
+                  onClick={removeImage}
+                  title="Remove image"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+              <span className="image-preview-filename">
+                <ImageIcon size={14} />
+                {imageName}
+              </span>
+            </div>
+          )}
+
+          {/* Textarea with live voice overlay */}
           <div className="textarea-wrapper">
-            <textarea
-              className="journal-textarea"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="What's on your mind?"
-              rows={12}
-            />
+            <div className="textarea-container">
+              <textarea
+                className="journal-textarea"
+                value={isRecording ? accumulatedTranscript : content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder={
+                  (isRecording || isTranscribing)
+                    ? "Listening..."
+                    : "What's on your mind?"
+                }
+                rows={12}
+                disabled={isRecording}
+              />
+              {/* Live interim transcript overlay — shows gray interim above solid accumulated text */}
+              {(isRecording || isTranscribing) && interimTranscript && (
+                <div className="interim-overlay" aria-hidden="true">
+                  <span className="interim-text">
+                    {accumulatedTranscript ? `${accumulatedTranscript}\n` : ""}{interimTranscript}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* OCR loading */}
+          {ocring && (
+            <div className="transcribe-loading">
+              <div className="spinner" />
+              <span>Recognizing text in image...</span>
+            </div>
+          )}
+
+          {/* OCR error */}
+          {ocrError && (
+            <div className="input-error">{ocrError}</div>
+          )}
+
+          {/* Voice loading (backend STT fallback) */}
+          {isTranscribing && !isRecording && (
+            <div className="transcribe-loading">
+              <div className="spinner" />
+              <span>Transcribing audio...</span>
+            </div>
+          )}
+
+          {/* Voice error */}
+          {voiceError && (
+            <div className="input-error">{voiceError}</div>
+          )}
+
+          {/* ChatGPT-style bottom toolbar */}
+          <div className="chatgpt-toolbar">
+            {/* Left: attachment + mic buttons */}
+            <div className="toolbar-left">
+              <button
+                type="button"
+                className="toolbar-btn"
+                title="Attach image"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={ocring || isRecording || isTranscribing}
+              >
+                <Paperclip size={20} />
+              </button>
+
+              <VoiceInputInline
+                isRecording={isRecording}
+                isTranscribing={isTranscribing}
+                interimTranscript={interimTranscript}
+                error={null}
+                onToggle={toggleRecording}
+              />
+
+              {(isRecording || isTranscribing) && (
+                <span className="recording-timer">{formatTime(recordingTime)}</span>
+              )}
+            </div>
+
+            {/* Right: placeholder spacer to keep left side aligned naturally */}
+            <div style={{ flex: 1 }} />
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="form-actions">
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={handleSaveDraft}
-          >
-            Save Draft
-          </button>
+        {/* Action Buttons — always visible at bottom */}
+        <div className="form-actions-sticky">
           <button
             type="submit"
-            className="btn-primary"
+            className="btn-primary btn-save-fullwidth"
             disabled={loading || !content.trim()}
           >
             {loading ? "Analyzing..." : "Save & Analyze"}

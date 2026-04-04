@@ -6,7 +6,41 @@
     <title>MindJournal AI</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <p data-mj-static style="margin: 1.5rem; font-family: system-ui, sans-serif; color: #444">
+        正在加载 MindJournal…
+      </p>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      (function () {
+        function showBlocked() {
+          var el = document.querySelector("[data-mj-static]");
+          if (!el) return;
+          var root = document.getElementById("root");
+          if (!root) return;
+          root.innerHTML =
+            '<div style="padding:1.75rem;font-family:system-ui,sans-serif;line-height:1.65;max-width:32rem;color:#222">' +
+            "<h2 style=\"margin:0 0 0.75rem;font-size:1.15rem\">当前页面无法运行应用脚本</h2>" +
+            "<p style=\"margin:0 0 0.75rem\">" +
+            "你很可能在使用 <strong>Cursor / VS Code 内置预览</strong>，它通常<strong>不能执行</strong>本页需要的 JavaScript（<code>type=module</code>），所以会一直停在上面的「正在加载…」。" +
+            "</p>" +
+            "<p style=\"margin:0 0 0.75rem\"><strong>请这样做：</strong></p>" +
+            "<ol style=\"margin:0 0 0.75rem;padding-left:1.25rem\">" +
+            "<li>关闭本预览窗口</li>" +
+            "<li>打开系统里的 <strong>Microsoft Edge</strong> 或 <strong>Google Chrome</strong></li>" +
+            "<li>在地址栏输入并回车：<br /><code style=\"display:inline-block;margin-top:0.35rem;background:#f0f0f0;padding:0.2rem 0.45rem;border-radius:4px\">http://127.0.0.1:8000</code></li>" +
+            "</ol>" +
+            "<p style=\"margin:0;font-size:0.9rem;color:#666\">" +
+            "<strong>关于 F12：</strong>只有用<strong>单独打开的</strong> Chrome / Edge 时，F12 才是网页开发者工具。" +
+            "在 Cursor 内置预览里按 F12，一般是<strong>编辑器快捷键</strong>，<strong>不会</strong>出现网页「控制台」。" +
+            "<br /><br />" +
+            "若你<strong>已经</strong>在 Chrome 或 Edge 里打开本页仍有问题：按 <strong>Ctrl+Shift+J</strong>（Chrome）或 <strong>Ctrl+Shift+I</strong>，再点「控制台」标签，截图发开发者。" +
+            "</p>" +
+            "</div>";
+        }
+        window.setTimeout(showBlocked, 6000);
+      })();
+    </script>
   </body>
 </html>

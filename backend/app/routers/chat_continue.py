@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 import json
+from datetime import datetime
 
 from ..database import SessionLocal
 from .. import models, schemas
@@ -72,6 +73,8 @@ def format_conversation_for_llm(history: list) -> str:
 async def continue_chat(req: schemas.ChatContinueRequest, db: Session = Depends(get_db)):
     """Continue a therapy session with gating logic"""
 
+    print(f"[CHAT/CONTINUE] >>> request received: session_id={req.session_id}, user_message='{req.user_message[:80]}'")
+
     # Find session
     session = db.query(models.TherapySession).filter_by(session_id=req.session_id).first()
     if not session:
@@ -110,14 +113,18 @@ async def continue_chat(req: schemas.ChatContinueRequest, db: Session = Depends(
     new_assistant_msg = ""
     new_round_index = session.round_index
 
+    print(f"[CHAT/CONTINUE] round={session.round_index}, history_count={len(conversation_history)}")
+
     try:
         if session.round_index == 1:
             # B1 stage - check if ready for B2
+            print(f"[CHAT/CONTINUE] Calling gate_b1_to_b2 with user_reply='{req.user_message[:50]}'")
             gating_result = await agent.gate_b1_to_b2(
                 journal_text=session.journal_text,
                 assistant_b1=last_assistant_msg or "",
                 user_reply=req.user_message
             )
+            print(f"[CHAT/CONTINUE] gate_b1_to_b2 result: {gating_result.get('decision')}")
 
             gating_decision = schemas.GatingDecision(
                 decision=gating_result.get("decision", "STAY_IN_B1"),
@@ -127,10 +134,12 @@ async def continue_chat(req: schemas.ChatContinueRequest, db: Session = Depends(
             )
 
             if gating_result.get("decision") == "READY_FOR_B2":
-                # Generate B2
+                print("[CHAT/CONTINUE] Decision: READY_FOR_B2, generating B2")
                 conv_str = format_conversation_for_llm(conversation_history)
                 b2_json = await agent.run_b2(context, conv_str, req.user_message)
+                print(f"[CHAT/CONTINUE] B2 generated, unsafe_flags={has_unsafe_flags(b2_json)}")
                 if has_unsafe_flags(b2_json):
+                    print("[CHAT/CONTINUE] B2 unsafe flags triggered, using fallback")
                     b2_json = fallback_b2()
 
                 new_assistant_msg = render_b2_text(b2_json)
@@ -142,7 +151,7 @@ async def continue_chat(req: schemas.ChatContinueRequest, db: Session = Depends(
                     "mode": "B2"
                 })
             else:
-                # Stay in B1 - generate follow-up
+                print("[CHAT/CONTINUE] Decision: STAY_IN_B1, generating B1 followup")
                 followup_style = gating_result.get("followup_style", "情緒承接")
                 b1_followup_json = await agent.run_b1_followup(
                     context=context,
@@ -151,11 +160,12 @@ async def continue_chat(req: schemas.ChatContinueRequest, db: Session = Depends(
                     user_reply=req.user_message,
                     followup_style=followup_style
                 )
+                print(f"[CHAT/CONTINUE] B1 followup generated, unsafe_flags={has_unsafe_flags(b1_followup_json)}")
                 if has_unsafe_flags(b1_followup_json):
+                    print("[CHAT/CONTINUE] B1 followup unsafe flags triggered, using fallback")
                     b1_followup_json = fallback_b1_followup()
 
                 new_assistant_msg = render_b1_followup_text(b1_followup_json)
-                # Stay in round 1
 
                 conversation_history.append({
                     "role": "assistant",
@@ -165,11 +175,13 @@ async def continue_chat(req: schemas.ChatContinueRequest, db: Session = Depends(
 
         elif session.round_index == 2:
             # B2 stage - check if ready for B3
+            print(f"[CHAT/CONTINUE] Calling gate_b2_to_b3 with user_reply='{req.user_message[:50]}'")
             gating_result = await agent.gate_b2_to_b3(
                 journal_text=session.journal_text,
                 assistant_b2=last_assistant_msg or "",
                 user_reply=req.user_message
             )
+            print(f"[CHAT/CONTINUE] gate_b2_to_b3 result: {gating_result.get('decision')}")
 
             gating_decision = schemas.GatingDecision(
                 decision=gating_result.get("decision", "STAY_IN_B2"),
@@ -179,10 +191,12 @@ async def continue_chat(req: schemas.ChatContinueRequest, db: Session = Depends(
             )
 
             if gating_result.get("decision") == "READY_FOR_B3":
-                # Generate B3
+                print("[CHAT/CONTINUE] Decision: READY_FOR_B3, generating B3")
                 conv_str = format_conversation_for_llm(conversation_history)
                 b3_json = await agent.run_b3(context, conv_str, req.user_message)
+                print(f"[CHAT/CONTINUE] B3 generated, unsafe_flags={has_unsafe_flags(b3_json)}")
                 if has_unsafe_flags(b3_json):
+                    print("[CHAT/CONTINUE] B3 unsafe flags triggered, using fallback")
                     b3_json = fallback_b3()
 
                 new_assistant_msg = render_b3_text(b3_json)
@@ -194,10 +208,9 @@ async def continue_chat(req: schemas.ChatContinueRequest, db: Session = Depends(
                     "mode": "B3"
                 })
 
-                # Mark session as completed
                 session.status = "completed"
             else:
-                # Stay in B2 - generate follow-up
+                print("[CHAT/CONTINUE] Decision: STAY_IN_B2, generating B2 followup")
                 followup_style = gating_result.get("followup_style", "澄清自動想法")
                 b2_followup_json = await agent.run_b2_followup(
                     context=context,
@@ -206,11 +219,12 @@ async def continue_chat(req: schemas.ChatContinueRequest, db: Session = Depends(
                     user_reply=req.user_message,
                     followup_style=followup_style
                 )
+                print(f"[CHAT/CONTINUE] B2 followup generated, unsafe_flags={has_unsafe_flags(b2_followup_json)}")
                 if has_unsafe_flags(b2_followup_json):
+                    print("[CHAT/CONTINUE] B2 followup unsafe flags triggered, using fallback")
                     b2_followup_json = fallback_b2_followup()
 
                 new_assistant_msg = render_b2_followup_text(b2_followup_json)
-                # Stay in round 2
 
                 conversation_history.append({
                     "role": "assistant",
@@ -220,13 +234,13 @@ async def continue_chat(req: schemas.ChatContinueRequest, db: Session = Depends(
 
         else:
             # Round 3 or beyond - just complete
+            print("[CHAT/CONTINUE] Round >= 3, marking session completed")
             session.status = "completed"
-            new_assistant_msg = "本轮整理已完成。感谢你的分享，如果你想继续聊其他话题，请告诉我。"
+            new_assistant_msg = "本轮整理已完成。如果你有其他想聊的，随时告诉我。"
             new_round_index = 3
 
     except Exception as e:
-        # Fallback behavior on error
-        print(f"Error in chat continue: {e}")
+        print(f"[CHAT/CONTINUE] ERROR: {e}")
         if session.round_index == 1:
             b1_followup_json = fallback_b1_followup()
             new_assistant_msg = render_b1_followup_text(b1_followup_json)
@@ -235,16 +249,18 @@ async def continue_chat(req: schemas.ChatContinueRequest, db: Session = Depends(
             new_assistant_msg = render_b2_followup_text(b2_followup_json)
         else:
             session.status = "completed"
-            new_assistant_msg = "本轮整理已完成。"
+            new_assistant_msg = "出现了一点问题，请稍后重试。"
 
     # Update session
     session.round_index = new_round_index
     session.conversation_history = json.dumps(conversation_history)
     session.last_assistant_mode = f"B{new_round_index}"
-    session.updated_at = models.datetime.utcnow()
+    session.updated_at = datetime.utcnow()
 
     db.commit()
     db.refresh(session)
+
+    print(f"[CHAT/CONTINUE] <<< returning: round={new_round_index}, status={session.status}, msg_len={len(new_assistant_msg)}")
 
     return schemas.ChatContinueResponse(
         assistant_message=new_assistant_msg,

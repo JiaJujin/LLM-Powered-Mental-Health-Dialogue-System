@@ -1,23 +1,25 @@
 import { Heart } from "lucide-react";
 import type { PrecheckResponse } from "../types";
+import { formatRoleName } from "../utils";
 
 interface Props {
   precheckResult: PrecheckResponse | null;
   onChangeCheckin: () => void;
 }
 
-export default function PrecheckStatusBar({ 
-  precheckResult, 
-  onChangeCheckin 
+export default function PrecheckStatusBar({
+  precheckResult,
+  onChangeCheckin
 }: Props) {
-  const mode = precheckResult?.role || "Not set";
+  const rawRole = precheckResult?.role || "";
+  const displayRole = rawRole ? formatRoleName(rawRole) : "Not set";
 
   return (
     <div className="precheck-status-bar">
       <div className="status-left">
         <Heart size={16} className="status-icon" />
         <span className="status-label">Current support mode:</span>
-        <span className="status-mode">{mode}</span>
+        <span className="status-mode">{displayRole}</span>
       </div>
       <button 
         className="btn-change-checkin" 

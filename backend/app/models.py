@@ -1,4 +1,5 @@
 # backend/app/models.py
+import json as _json
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -41,6 +42,18 @@ class JournalEntry(Base):
     risk_level = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    # --- Multimodal support fields ---
+    # Input source type: "text" | "voice" | "image"
+    source_type = Column(String, default="text")
+    # Raw transcript / OCR result before user confirmation
+    original_input_text = Column(Text, nullable=True)
+    # Final text after user editing/confirmation (may differ from content)
+    final_text = Column(Text, nullable=True)
+    # Path to stored original audio/image file
+    source_file_path = Column(String, nullable=True)
+    # JSON metadata: duration_seconds, ocr_confidence, ocr_pages, detected_language, etc.
+    input_metadata = Column(Text, nullable=True)
+
     user = relationship("User")
 
 
@@ -67,6 +80,16 @@ class AnalysisHistory(Base):
     common_themes = Column(Text)
     growth_observations = Column(Text)
     recommendations = Column(Text)
+
+    # --- Cache freshness tracking ---
+    # How many journal entries were used to generate this analysis
+    source_entry_count = Column(Integer, default=0)
+    # The latest journal entry ID at the time of generation
+    latest_entry_id = Column(Integer, nullable=True)
+    # When the latest source entry was created (UTC)
+    latest_entry_created_at = Column(DateTime, nullable=True)
+    # Total entries at generation time
+    total_entries_at_time = Column(Integer, default=0)
 
     user = relationship("User")
 
@@ -100,3 +123,38 @@ class TherapySession(Base):
 
     user = relationship("User")
     journal_entry = relationship("JournalEntry")
+
+
+# ---------------------------------------------------------------------------
+# Standalone free-form chat sessions (separate from therapy sessions)
+# ---------------------------------------------------------------------------
+
+class ChatSession(Base):
+    """Free-form chat sessions for the chatbot tab — survives page refresh."""
+    __tablename__ = "chat_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String, unique=True, index=True)   # public UUID shown to frontend
+    anon_id = Column(String, index=True)                  # matches frontend anonId
+    type = Column(String, default="chat")                 # "diary" | "chat" — which page owns this session
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    title = Column(String, nullable=True)                 # optional chat title (first user message)
+    conversation_history = Column(Text)                  # JSON array of {role, content, created_at}
+    diary_content = Column(Text, nullable=True)          # the diary entry associated with this session
+
+
+# ---------------------------------------------------------------------------
+# Crisis alerts — logged whenever LLM-based crisis detection is triggered
+# ---------------------------------------------------------------------------
+
+class CrisisAlert(Base):
+    """Persisted record of every LLM-classified crisis event."""
+    __tablename__ = "crisis_alerts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True)                      # matches frontend anonId
+    source = Column(String)                                  # "diary" | "chat"
+    triggered_at = Column(DateTime, default=datetime.utcnow)
+    message_snippet = Column(String(500))                    # first 500 chars of triggering text
+    status = Column(String, default="counselor_contacted")  # always saved as "contacted" (mock mode)

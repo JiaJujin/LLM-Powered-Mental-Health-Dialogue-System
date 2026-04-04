@@ -41,7 +41,7 @@ const InsightsView: React.FC<Props> = ({ anonId }) => {
       setData(res.data);
     } catch (err) {
       console.error(err);
-      alert("加载 Insights 失败");
+      alert("Failed to load Insights.");
     } finally {
       setLoading(false);
     }
@@ -200,7 +200,7 @@ const InsightsView: React.FC<Props> = ({ anonId }) => {
                   <h3 className="text-lg font-semibold">Emotional Patterns</h3>
                 </div>
                 <p className="text-neutral-700 leading-7">
-                  {data.emotional_patterns || "暂无分析内容"}
+                  {data.emotional_patterns || "No analysis available yet."}
                 </p>
               </div>
 
@@ -210,7 +210,7 @@ const InsightsView: React.FC<Props> = ({ anonId }) => {
                   <h3 className="text-lg font-semibold">Common Themes</h3>
                 </div>
                 <p className="text-neutral-700 leading-7">
-                  {data.common_themes || "暂无分析内容"}
+                  {data.common_themes || "No analysis available yet."}
                 </p>
               </div>
 
@@ -220,7 +220,7 @@ const InsightsView: React.FC<Props> = ({ anonId }) => {
                   <h3 className="text-lg font-semibold">Growth Observations</h3>
                 </div>
                 <p className="text-neutral-700 leading-7">
-                  {data.growth_observations || "暂无分析内容"}
+                  {data.growth_observations || "No analysis available yet."}
                 </p>
               </div>
 
@@ -230,7 +230,7 @@ const InsightsView: React.FC<Props> = ({ anonId }) => {
                   <h3 className="text-lg font-semibold">Recommendations</h3>
                 </div>
                 <p className="text-neutral-700 leading-7">
-                  {data.recommendations || "暂无分析内容"}
+                  {data.recommendations || "No analysis available yet."}
                 </p>
               </div>
             </div>

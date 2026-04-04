@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Calendar, ChevronLeft, Search, X } from "lucide-react";
+import { Calendar, ChevronLeft, Search, X, Mic, ImageIcon, BookOpen } from "lucide-react";
 import { fetchFilteredJournalHistory } from "../api";
 import type { JournalHistoryItem, JournalFilterParams } from "../types";
 
 interface Props {
   anonId: string;
   onViewDetail: (entryId: number) => void;
+  onGoToWriteWithDate: (date: string) => void;
 }
 
 const MOOD_OPTIONS = [
@@ -29,7 +30,7 @@ const MOOD_EMOJI: Record<string, string> = {
   Grateful: "🙏",
 };
 
-function formatDate(dateStr: string | null, createdAt: string): string {
+function formatDate(dateStr: string | null | undefined, createdAt: string | undefined): string {
   if (dateStr) {
     return new Date(dateStr).toLocaleDateString("en-US", {
       weekday: "short",
@@ -38,7 +39,8 @@ function formatDate(dateStr: string | null, createdAt: string): string {
       year: "numeric",
     });
   }
-  return new Date(createdAt).toLocaleDateString("en-US", {
+  const dateToUse = createdAt ?? new Date().toISOString();
+  return new Date(dateToUse).toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -59,7 +61,7 @@ function getPreview(content?: string): string {
   return text.length > 100 ? text.substring(0, 100) + "..." : text;
 }
 
-export default function HistoryPage({ anonId, onViewDetail }: Props) {
+export default function HistoryPage({ anonId, onViewDetail, onGoToWriteWithDate }: Props) {
   const [entries, setEntries] = useState<JournalHistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<JournalFilterParams>({
@@ -163,11 +165,22 @@ export default function HistoryPage({ anonId, onViewDetail }: Props) {
           <div className="history-loading">Loading...</div>
         ) : entries.length === 0 ? (
           <div className="history-empty">
-            <p>No journal entries found.</p>
-            {hasActiveFilters && (
-              <button className="clear-filters-link" onClick={clearFilters}>
-                Clear filters
-              </button>
+            {!hasActiveFilters ? (
+              <>
+                <BookOpen size={48} className="history-empty-icon" />
+                <h2 className="history-empty-title">No entries yet</h2>
+                <p className="history-empty-subtitle">Start writing to build your journal history.</p>
+                <button className="primary-btn" onClick={() => onGoToWriteWithDate(new Date().toISOString().split("T")[0])}>
+                  Write your first entry
+                </button>
+              </>
+            ) : (
+              <>
+                <p>No journal entries match your filters.</p>
+                <button className="clear-filters-link" onClick={clearFilters}>
+                  Clear filters
+                </button>
+              </>
             )}
           </div>
         ) : (
@@ -176,16 +189,25 @@ export default function HistoryPage({ anonId, onViewDetail }: Props) {
               <button
                 key={entry.entry_id}
                 className="history-card"
-                onClick={() => onViewDetail(entry.entry_id)}
+                onClick={() => {
+                  const dateStr = entry.entry_date ?? entry.created_at ?? new Date().toISOString().split("T")[0];
+                  onGoToWriteWithDate(dateStr);
+                }}
               >
                 <div className="history-card-header">
                   <span className="history-card-date">
                     <Calendar size={14} />
-                    {formatDate(entry.entry_date, entry.created_at || "")}
+                    {formatDate(entry.entry_date ?? null, entry.created_at ?? new Date().toISOString())}
                   </span>
                   {entry.mood && (
                     <span className="history-card-mood">
                       {MOOD_EMOJI[entry.mood] || ""} {entry.mood}
+                    </span>
+                  )}
+                  {entry.source_type && entry.source_type !== "text" && (
+                    <span className={`history-card-source source-${entry.source_type}`}>
+                      {entry.source_type === "voice" ? <Mic size={11} /> : <ImageIcon size={11} />}
+                      {entry.source_type}
                     </span>
                   )}
                 </div>

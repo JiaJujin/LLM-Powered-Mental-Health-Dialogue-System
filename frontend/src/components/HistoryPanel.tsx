@@ -98,7 +98,7 @@ export default function HistoryPanel({ anonId, isOpen, onClose, onSelectEntry }:
                   <div className="history-item-left">
                     <span className="history-date">
                       <Calendar size={14} />
-                      {formatDate(entry.entry_date, entry.preview)}
+                      {formatDate(entry.entry_date ?? null, entry.preview ?? "")}
                     </span>
                     {entry.title ? (
                       <span className="history-title">{entry.title}</span>

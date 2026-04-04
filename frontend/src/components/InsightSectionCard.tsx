@@ -12,7 +12,7 @@ export default function InsightSectionCard({ title, icon, content }: Props) {
         <span>{title}</span>
       </div>
 
-      <p className="card-text">{content || "暂无分析内容"}</p>
+      <p className="card-text">{content || "No analysis available yet."}</p>
     </div>
   );
 }

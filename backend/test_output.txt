@@ -1,0 +1,38 @@
+﻿============================================================
+[CONFIG] MindJournal AI - 鏅鸿氨 BigModel 瀹樻柟 API
+============================================================
+[CONFIG] provider       : zhipu (BigModel)
+[CONFIG] base_url       : https://open.bigmodel.cn/api/paas/v4
+[CONFIG] completions_url: https://open.bigmodel.cn/api/paas/v4/chat/completions
+[CONFIG] model          : glm-4.5-air
+[CONFIG] request_timeout: 60.0s
+[CONFIG] api_key set    : True
+============================================================
+[LANG_DETECT] text_len=4  chinese_chars=4  ratio=1.00  鈫?'zh'
+[LANG_DETECT] text_len=4  chinese_chars=4  ratio=1.00  鈫?'zh'
+[ZHIPU_CLIENT] POST  url=https://open.bigmodel.cn/api/paas/v4/chat/completions  model=glm-4.5-air  max_tokens=300  thinking={'type': 'disabled'}
+[ZHIPU_CLIENT] Response OK  choices_exists=True  choices_len=1  content_len=119  finish_reason=stop
+[TEST] [OK] content extracted, len=119, preview='鑱藉埌浣犺鎯宠嚜娈猴紝鎴戝緢鎿斿績浣犮€備綘鐝惧湪瀹夊叏鍡庯紵浣犺韩閭婃湁娌掓湁浜哄彲浠ラ櫔浣狅紵璜嬭浣忥紝浣犱笉鐢?
+python : Traceback (most recent call last):
+所在位置 C:\Users\86136\AppData\Local\Temp\ps-script-d46d6a84-ab39-4d58-80f2-eeb781a03bbf.ps1:85 字符: 59
++ ... journal-ai\backend"; python -X utf8 test_crisis_reply.py 2>&1 | Out-F ...
++                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "C:\Users\86136\Desktop\LLM蹇冪悊\mindjournal-ai\backend\test_crisis_reply.py", line 49, in <module>
+    asyncio.run(main())
+    ~~~~~~~~~~~^^^^^^^^
+  File "C:\Program Files\Python313\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "C:\Program Files\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Program Files\Python313\Lib\asyncio\base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "C:\Users\86136\Desktop\LLM蹇冪悊\mindjournal-ai\backend\test_crisis_reply.py", line 40, in main
+    reply = raw_content.encode('latin-1').decode('utf-8') if isinstance(raw_content, str) else raw_content
+            ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+UnicodeEncodeError: 'latin-1' codec can't encode characters in position 0-69: ordinal not in range(256)

@@ -22,10 +22,16 @@ async def precheck(req: schemas.PrecheckRequest, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
 
-    result = await agent.select_role(req.body_feeling, req.need, req.emotion)
-    role = result["role"]
-    confidence = float(result.get("confidence", 0.8))
-    reasons = result.get("reasons", "")
+    try:
+        result = await agent.select_role(req.body_feeling, req.need, req.emotion)
+        role = result.get("role", "Emotional Support")
+        confidence = float(result.get("confidence", 0.8))
+        reasons = result.get("reasons", "")
+    except Exception as e:
+        print(f"[PRECHECK] LLM 调用失败，使用默认角色: {e}")
+        role = "Emotional Support"
+        confidence = 0.0
+        reasons = "LLM 不可用，使用默认角色。"
 
     pc = models.PreCheck(
         user_id=user.id,

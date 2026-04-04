@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { submitJournal } from "../api";
-import type { JournalResponse, PrecheckResponse } from "../types";
+import type { JournalResponse, PrecheckResponse, JournalSubmitParams } from "../types";
+import { formatRoleName } from "../utils";
 import ConversationView from "./ConversationView";
 import JournalForm from "./JournalForm";
 
@@ -37,7 +38,32 @@ export default function JournalPage({
 
       onSubmitted(data);
     } catch (error) {
-      alert("提交日记失败");
+      alert("Failed to submit journal.");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitWithMeta = async (payload: JournalSubmitParams) => {
+    setLoading(true);
+    try {
+      const data = await submitJournal({
+        anon_id: anonId,
+        content: payload.content,
+        mood: payload.mood,
+        weather: payload.weather,
+        title: payload.title,
+        entry_date: payload.entry_date,
+        source_type: payload.source_type,
+        original_input_text: payload.original_input_text,
+        source_file_path: payload.source_file_path,
+        input_metadata: payload.input_metadata,
+      });
+
+      onSubmitted(data);
+    } catch (error) {
+      alert("Failed to submit journal.");
       console.error(error);
     } finally {
       setLoading(false);
@@ -53,7 +79,7 @@ export default function JournalPage({
         </div>
 
         <div className="empty-card">
-          <p>请先完成 Pre-check，再开始记录日记。</p>
+          <p>Please complete the Pre-check before you can start journaling.</p>
           <button className="primary-btn" onClick={goToCheckin}>
             Go to Check-in
           </button>
@@ -66,10 +92,10 @@ export default function JournalPage({
     <div className="page">
       <div className="page-header">
         <h1>Journal</h1>
-        <p>Your assigned role: {precheckResult.role}</p>
+        <p>Your assigned role: {precheckResult ? formatRoleName(precheckResult.role) : "General Support"}</p>
       </div>
 
-      <JournalForm onSubmit={handleSubmit} loading={loading} />
+      <JournalForm onSubmit={handleSubmit} onSubmitWithMeta={handleSubmitWithMeta} loading={loading} />
 
       {lastJournalResult && (
         <ConversationView data={lastJournalResult} />
