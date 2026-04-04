@@ -5,12 +5,12 @@
     "nixpacksPlan": {
       "phases": {
         "setup": {
-          "nixPkgs": ["python3", "nodejs_20"]
+          "nixPkgs": ["python312", "nodejs_20", "pip"]
         },
         "install": {
           "cmds": [
             "cd frontend && npm install && npm run build",
-            "cd backend && pip install -r requirements.txt"
+            "cd backend && python -m pip install --no-cache-dir -r requirements.txt"
           ]
         }
       },
