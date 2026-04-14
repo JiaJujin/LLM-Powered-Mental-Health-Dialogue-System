@@ -1,676 +1,559 @@
 # MindJournal AI
 
-> An AI-powered mental health journaling application that combines reflective journaling with structured therapeutic conversations, powered by large language models.
+> 一个注重隐私的 AI 心理健康日记伴侣，通过引导式日记记录与结构化治疗对话，帮助用户梳理情绪、觉察内心。由大语言模型驱动。
 
-> 一个由 AI 驱动的心理健康日记应用，将反思性日记与结构化治疗对话相结合，由大语言模型提供支持。
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+> A privacy-first AI mental wellness companion that combines guided journaling with structured therapeutic conversations, powered by large language models.
 
 ---
 
-## 本地开发一键启动
+## 核心原则 | Core Principles
 
-### Windows 用户
+- **不做诊断** — AI 不会给出临床诊断
+- **不做医疗建议** — 不提供用药或治疗方案建议
+- **危机安全保障** — 内置三级风险检测，Level 3 触发人工支持资源展示
+- **默认匿名** — 不收集邮箱、姓名等可识别信息，所有用户以随机 UUID 标识
+- **本地优先** — 数据存储在本地 SQLite，不主动共享
 
-打开 **PowerShell**，cd 到项目根目录（`mindjournal-ai` 文件夹），执行：
+- **No Diagnosis** — AI does not provide clinical diagnoses
+- **No Medical Advice** — No medication or treatment recommendations
+- **Crisis Safety** — Built-in three-level risk detection, Level 3 triggers human support resources
+- **Anonymous by Default** — No email, name, or identifying info collected; users identified by random UUID
+- **Local-First** — Data stored locally in SQLite, not shared proactively
 
-```powershell
-.\scripts\start_dev.ps1
-```
+> 本应用不能替代专业心理健康护理。若您正处于心理健康危机中，请联系紧急服务或合格的心理健康专业人员。
 
-> **注意**：如果是首次运行，脚本会提示你输入智谱 API Key，按提示填入即可（只填一次）。
-
-### Mac / Linux 用户
-
-```bash
-chmod +x scripts/start_dev.sh
-./scripts/start_dev.sh
-```
-
-> 首次运行若提示权限不够，执行 `chmod +x scripts/start_dev.sh` 后重试。
-
-### 正常启动后
-
-| 服务 | 地址 |
-|------|------|
-| **后端 API 文档（Swagger）** | http://localhost:8000/docs |
-| **前端页面（开发）** | http://localhost:5173/ |
-
-> 关闭时直接按 `Ctrl+C` 或关掉终端窗口即可停止所有服务。
+> This app cannot replace professional mental health care. If you are in a mental health crisis, please contact emergency services or a qualified mental health professional.
 
 ---
 
-## Quick Start 快速启动
+## 主要功能 | Key Features
 
-### 方法一：一键启动（推荐）
+### 日记记录与分析 | Journal Recording & Analysis
+- 支持文字输入、手写图片 OCR 识别（GLM-OCR）、语音转文字三种输入方式
+- 提交时自动进行情绪分类（Emotion Classification）
+- 实时风险检测，分为三个等级：低风险（正常支持）→ 中风险（谨慎推进）→ 高风险（停止 AI 治疗，显示人工支持资源）
+- 提交后自动生成反思性首次回复（B1 阶段）
 
-双击运行以下文件，会自动启动前后端：
+- Supports three input methods: text, handwriting OCR (GLM-OCR), voice-to-text
+- Auto emotion classification on submission (Emotion Classification)
+- Real-time risk detection in three levels: Low (normal support) → Medium (proceed with caution) → High (stop AI therapy, show human support)
+- Auto-generate reflective first response (B1 stage) after submission
 
-```
-scripts\一键启动.bat
-```
+### 语音输入 | Voice Input (ASR)
+- 浏览器端录制音频，调用后端语音转文字服务
+- 支持三种后端（按优先级自动切换）：
+  1. **智谱 GLM-ASR-2512**（主要方案，无需额外 API Key）
+  2. **OpenAI Whisper**（需要 `OPENAI_API_KEY`）
+  3. **Google Speech Recognition**（免费备选，无需 Key，支持短音频 <60s）
+- 支持语言：普通话、粤语、英语
 
-这会自动：
-1. 创建/激活 Python 虚拟环境
-2. 安装后端依赖
-3. 启动后端服务器（端口 8000）
-4. 启动前端开发服务器（端口 5173）
-5. 提示你打开浏览器
+- Browser-side audio recording, calling backend speech-to-text service
+- Three backends supported (auto-fallback):
+  1. **Zhipu GLM-ASR-2512** (primary, no extra API Key needed)
+  2. **OpenAI Whisper** (requires `OPENAI_API_KEY`)
+  3. **Google Speech Recognition** (free fallback, supports <60s audio)
+- Supported languages: Mandarin, Cantonese, English
 
-### 方法二：手动启动（两个终端）
+### 手写日记图片 OCR | Handwriting OCR
+- 上传手写日记照片，自动提取文字（GLM-OCR via zai SDK）
+- 提取后由用户确认/编辑，再进入日记分析流程
+- 仅做文字识别，不做心理分析
 
-#### 第一步：启动后端
+- Upload handwritten journal photos, auto extract text (GLM-OCR via zai SDK)
+- User confirms/edits extracted text before entering journal analysis
+- Text recognition only, no psychological analysis
 
-打开**终端 1**，依次运行：
+### Pre-Check 角色匹配 | Pre-Check Role Matching
+- 每次提交日记前，用户描述身体感受、需求和情绪
+- AI 选择最合适的支持角色：情感支持 / 思维澄清 / 元反思
 
-```bash
-cd "c:\Users\86136\Desktop\LLM心理\mindjournal-ai\backend"
-.venv\Scripts\activate
-uvicorn app.main:app --reload --port 8000 --host 127.0.0.1
-```
+- Before each journal submission, user describes physical feelings, needs, and emotions
+- AI selects the most suitable support role: Emotional Support / Clarify Thinking / Meta Reflection
 
-验证后端是否启动成功：
-- 打开浏览器访问 http://127.0.0.1:8000/docs
-- 或直接访问 http://127.0.0.1:8000/api/health，应该返回 `{"status":"ok",...}`
+### 三阶段治疗对话 | Three-Stage Therapeutic Dialogue (B1 / B2 / B3)
+- **B1 — 反思性倾听**：以人为中心的接纳与共情回应，始终为对话第一步
+- **B2 — 认知澄清**：苏格拉底式提问，识别认知扭曲（需通过门控评估后进入）
+- **B3 — 价值观与承诺**：基于 ACT 的解离技术与价值观连接（需二次门控）
+- 各阶段转换由 AI 门控决策评估用户是否准备好深入互动
 
-#### 第二步：启动前端
+- **B1 — Reflective Listening**: Person-centered acceptance and empathic response, always the first step
+- **B2 — Cognitive Clarification**: Socratic questioning, identifying cognitive distortions (enters after gate evaluation)
+- **B3 — Values & Commitment**: ACT-based defusion techniques and values connection (requires second gate)
+- Stage transitions evaluated by AI gate decisions
 
-打开**终端 2**，依次运行：
+### 心理健康洞察 | Mental Health Insights
+- AI 生成近 14 天的数据仪表板：记录总数、连续记录天数、情绪与风险分布图表
+- 整体情绪摘要、反复出现的主题、成长观察
+- 温和、非指导性的建议 + 每日肯定语 + 自我反思焦点
+- 洞察报告保存至历史，可随时回顾
+- 支持洞察缓存，避免重复生成
 
-```bash
-cd "c:\Users\86136\Desktop\LLM心理\mindjournal-ai\frontend"
-npm install     # 首次运行需要，之后跳过
-npm run dev
-```
+- AI generates 14-day data dashboard: total records, streak days, emotion and risk distribution charts
+- Overall emotional summary, recurring themes, growth observations
+- Gentle, non-directive suggestions + daily affirmation + self-reflection focus
+- Insights reports saved to history for review
+- Insights caching to avoid redundant generation
 
-#### 第三步：打开应用
+### 日记历史 | Journal History
+- 浏览所有历史日记，按日期和心情标签筛选
+- 点击任意日记查看完整内容及对应治疗对话记录
 
-在浏览器（Chrome 或 Edge，**不要用 Cursor 内置预览**）中打开：
+- Browse all historical journals, filter by date and mood tags
+- Click any journal to view full content and corresponding therapeutic dialogue
 
-```
-http://127.0.0.1:5173
-```
+### 独立聊天页面 | Standalone Chat Page
+- 无需日记，直接与 AI 进行自由对话
+- 支持会话持久化，刷新页面不丢失对话
 
-### 方法三：只启动后端（使用内置前端）
+- Chat with AI freely without writing a journal
+- Conversation persistence, survive page refresh
 
-如果不想安装 Node.js，也可以只启动后端，它会直接提供内置的已构建前端：
+### 危机检测与响应 | Crisis Detection & Response
+- **双重检测机制**：实时关键词检测 + 提交时风险等级评估
+- 实时危机关键词库（中英文），每次对话触发检测
+- Level 3 触发 CrisisAlert 记录，显示人工支持资源
 
-```bash
-cd "c:\Users\86136\Desktop\LLM心理\mindjournal-ai\backend"
-.venv\Scripts\activate
-uvicorn app.main:app --reload --port 8000 --host 127.0.0.1
-```
+- **Dual detection**: Real-time keyword detection + submission-time risk assessment
+- Real-time crisis keyword library (Chinese & English), triggers on every message
+- Level 3 triggers CrisisAlert record, displays human support resources
 
-然后在浏览器打开 http://127.0.0.1:8000
+### 支持资源系统 | Support Resources System
+- 心理健康支持资源仪表板
+- 个人支持页面（MySupport.tsx）
+- 危机热线、人工支持卡片展示
 
-### 验证清单
-
-- 后端运行中： http://127.0.0.1:8000/api/health → 返回 `{"status":"ok"}`
-- Swagger 文档： http://127.0.0.1:8000/docs
-- 前端页面： http://127.0.0.1:5173
-
-### 最小测试流程
-
-1. 打开 http://127.0.0.1:5173
-2. 关闭 Precheck 弹窗（跳过也可以）
-3. 在左侧日记面板输入文字，如"今天天气很好"
-4. 点击发送按钮
-5. 右侧对话区域会显示 AI 回复
-
----
-
-## Overview 概览
-
-MindJournal AI is a privacy-first mental wellness companion that helps users process their thoughts through guided journaling and multi-stage AI therapeutic conversations. The app uses the **Nvidia Nemotron 3 Super** model via the OpenRouter API to deliver structured, evidence-informed psychological support without replacing professional care.
-
-MindJournal AI 是一个注重隐私的心理健康伴侣，通过引导式日记和多阶段 AI 治疗对话帮助用户梳理思绪。该应用通过 OpenRouter API 使用 **Nvidia Nemotron 3 Super** 模型，提供结构化的、有循证依据的心理支持，且不替代专业诊疗。
-
-Key principles 核心原则:
-- **No diagnosis 不做诊断** — the AI never provides clinical diagnoses AI 不会提供临床诊断
-- **No medical advice 不提供医疗建议** — no medication recommendations or treatment suggestions 不提供用药建议或治疗方案
-- **Crisis safety 危机安全保障** — built-in risk detection with human support escalation 内置风险检测与人工支持升级机制
-- **Privacy-first 隐私优先** — anonymous user IDs, local SQLite storage, no data sharing 匿名用户 ID、本地 SQLite 存储、不共享数据
-
----
-
-## Features 功能
-
-### Journal Entry & Analysis 日记记录与分析
-- Write journal entries with mood and weather tags 用心情和天气标签写日记
-- AI-powered emotion classification on every submission 提交时自动进行 AI 情绪分类
-- Real-time risk detection with 3-level severity scoring 实时风险检测，分为 3 级严重程度
-- Automatic reflective first-response (B1) after submission 提交后自动生成反思性首次回复（B1）
-
-### 🎙️ Voice-to-Text Input (ASR) 语音转文字输入
-
-Users can speak directly into the app instead of typing. Audio is recorded in the browser and transcribed via the **OpenAI Whisper API**, with the result automatically populated into the journal or chat input field.
-
-用户可以直接通过语音输入日记或对话内容，无需手动打字。音频在浏览器端录制后，通过 **OpenAI Whisper API** 进行转写，结果自动填入日记或聊天输入框。
-
-**Supported languages 支持语言:** Cantonese (粤语), Mandarin (普通话), English — Whisper large-v3 auto-detects language or can be set to `zh` for Chinese variants.
-
-**How it works 工作流程:**
-
-```
-Browser Microphone 浏览器麦克风
-        ↓  MediaRecorder API (WebM/WAV)
-POST /api/speech/transcribe
-        ↓
-backend/app/routers/speech.py
-        ↓
-OpenAI Whisper API  (model: whisper-1)
-        ↓
-Transcribed text → Auto-filled into journal / chat input
-转写文字 → 自动填入日记 / 对话输入框
-```
-
-**Backend endpoint 后端接口:**
-
-```python
-# backend/app/routers/speech.py
-from fastapi import APIRouter, UploadFile, File
-from openai import OpenAI
-import tempfile, os
-
-router = APIRouter(prefix="/speech", tags=["speech"])
-client = OpenAI()  # uses OPENAI_API_KEY from .env
-
-@router.post("/transcribe")
-async def transcribe_audio(file: UploadFile = File(...)):
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp:
-        tmp.write(await file.read())
-        tmp_path = tmp.name
-    try:
-        with open(tmp_path, "rb") as audio:
-            result = client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio,
-                language="zh",   # supports Cantonese & Mandarin; omit for auto-detect
-                response_format="text"
-            )
-        return {"text": result}
-    finally:
-        os.unlink(tmp_path)
-```
-
-Register the router in `backend/app/main.py`:
-```python
-from app.routers import speech
-app.include_router(speech.router, prefix="/api")
-```
-
-**Frontend recording snippet 前端录音代码:**
-
-```typescript
-const startRecording = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const mediaRecorder = new MediaRecorder(stream);
-  const chunks: BlobPart[] = [];
-
-  mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-  mediaRecorder.onstop = async () => {
-    const blob = new Blob(chunks, { type: "audio/webm" });
-    const formData = new FormData();
-    formData.append("file", blob, "recording.webm");
-
-    const res = await fetch("/api/speech/transcribe", {
-      method: "POST",
-      body: formData,
-    });
-    const { text } = await res.json();
-    setInputValue(text); // auto-fill into journal or chat input
-  };
-
-  mediaRecorder.start();
-  setTimeout(() => mediaRecorder.stop(), 5000); // 5s default; replace with button-stop logic
-};
-```
-
-**ASR tool comparison 语音识别工具对比:**
-
-| Option 方案 | Pros 优点 | Cons 缺点 |
-|---|---|---|
-| **OpenAI Whisper API** ✅ (recommended) | Zero-setup, strong Cantonese support, shares existing API key | Per-minute cost |
-| Local `openai-whisper` | Free, offline | Requires GPU / large memory |
-| Groq Whisper API | Large free tier, very fast | Separate account needed |
+- Mental health support resources dashboard
+- Personal support page (MySupport.tsx)
+- Crisis hotlines, human support card display
 
 ---
 
-### Multi-Stage Therapeutic Conversation 多阶段治疗对话
+## 技术栈 | Tech Stack
 
-The app uses a **3-stage gated therapy model** built on evidence-based approaches:
-
-该应用使用基于循证方法的**三阶段门控治疗模型**：
-
-| Stage 阶段 | Name 名称 | Approach 方法 | Trigger 触发条件 |
-|-------|------|----------|--------|
-| **B1** | Reflective Listening 反思性倾听 | Person-centered validation and empathic reflection 以人为中心的接纳与共情回应 | Always first 始终为第一步 |
-| **B2** | Cognitive Clarification 认知澄清 | Socratic questioning to identify cognitive distortions 苏格拉底式提问以识别认知扭曲 | After gating check 通过门控检查后 |
-| **B3** | Values & Commitment 价值观与承诺 | ACT-based defusion and value connection 基于 ACT 的解离技术与价值观连接 | After second gating check 通过第二次门控检查后 |
-
-Each transition between stages requires an AI **gating decision** that evaluates whether the user is ready for deeper engagement.
-
-每个阶段之间的转换都需要 AI 进行**门控决策**，评估用户是否准备好进行更深入的互动。
-
-### Pre-Check Role Matching 提交前角色匹配
-Before each journal submission, users describe their body feelings, needs, and emotions. The AI selects the most appropriate supportive role:
-
-在每次提交日记前，用户描述身体感受、需求和情绪。AI 会选择最合适的支持角色：
-
-- **Emotional Support 情感支持** — validation and empathy 接纳与共情
-- **Clarify Thinking 思维澄清** — cognitive restructuring 认知重构
-- **Meta Reflection 元反思** — observer perspective 观察者视角
-
-### 14-Day Mental Health Insights 14 天心理健康洞察
-
-An AI-generated dashboard summarizing:
-
-AI 生成的数据仪表板，包含以下内容：
-
-- Total entries and current journaling streak 记录总数与当前连续记录天数
-- Emotion and risk distribution charts 情绪与风险分布图表
-- Overall emotional summary 整体情绪摘要
-- Key patterns and recurring themes 关键模式与反复出现的主题
-- Growth moments and positive observations 成长时刻与积极观察
-- Gentle, non-prescriptive recommendations 温和的、非指导性的建议
-- **Affirmation** — a warm, personalized encouragement **肯定语** — 温暖、个性化的鼓励
-- Focus points for self-reflection 自我反思的焦点
-
-### Journal History 日记历史
-- Browse all past journal entries 浏览所有历史日记
-- Filter by date and mood 按日期和心情筛选
-- Click into any entry to view full content and its chatbot conversation 点击任意日记查看完整内容及聊天对话
-
-### Crisis Detection & Safety 危机检测与安全
-
-Risk-level classification on every entry:
-
-每次记录都有风险等级分类：
-
-- **Level 1 等级 1** — Low risk, normal AI support proceeds 低风险，AI 正常支持
-- **Level 2 等级 2** — Medium risk, AI proceeds with caution and supportive tone 中等风险，AI 谨慎推进，语气温和支持
-- **Level 3 等级 3** — High risk, AI therapy stops and human support resources are shown 高风险，AI 治疗停止，显示人工支持资源
+| 层级 | Layer | 技术 | Technology |
+|------|-------|------|------------|
+| 前端 | Frontend | React 19, TypeScript, Vite 6 | React 19, TypeScript, Vite 6 |
+| UI 图标 | UI Icons | Lucide React | Lucide React |
+| 图表 | Charts | Recharts | Recharts |
+| HTTP 客户端 | HTTP Client | Axios | Axios |
+| 状态管理 | State | Zustand（前端）+ SQLite（持久化） | Zustand + SQLite |
+| 后端 | Backend | FastAPI (Python 3.10+), Pydantic v2 | FastAPI, Pydantic v2 |
+| 数据库 | Database | SQLite + SQLAlchemy ORM 2.0 | SQLite + SQLAlchemy ORM 2.0 |
+| LLM | LLM | 智谱 BigModel API（支持微调模型切换） | Zhipu BigModel API (fine-tuned model switchable) |
+| STT | STT | 智谱 GLM-ASR-2512（主）→ Whisper → Google Speech | GLM-ASR-2512 → Whisper → Google Speech |
+| OCR | OCR | 智谱 GLM-OCR via zai SDK | GLM-OCR via zai SDK |
 
 ---
 
-## Architecture 架构
+## 项目结构 | Project Structure
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   Frontend (React 19)                   │
-│              http://localhost:5173                      │
-│  ┌──────────────┐  ┌───────────────┐  ┌─────────────┐ │
-│  │ JournalPanel │  │   ChatPanel   │  │InsightsPage │ │
-│  └──────────────┘  └───────────────┘  └─────────────┘ │
-│  🎙️ MediaRecorder → POST /api/speech/transcribe        │
-│         ▲ Vite Proxy (dev) / Nginx (prod)              │
-└─────────┬───────────────────────────────────────────────┘
-          │ HTTP REST API  /api/*
-          ▼
-┌─────────────────────────────────────────────────────────┐
-│                   Backend (FastAPI)                     │
-│              http://localhost:8000                      │
-│  ┌─────────────────────────────────────────────────────┐│
-│  │             TherapyAgent (therapy_agent.py)          ││
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐ ┌──────┐││
-│  │  │ PreCheck │  │ Journal  │  │ Insights │ │Speech│││
-│  │  │  Router  │  │  Router  │  │  Router  │ │Router│││
-│  │  └──────────┘  └──────────┘  └──────────┘ └──────┘││
-│  └─────────────────────────────────────────────────────┘│
-│            │ Structured LLM calls via OpenRouter        │
-│            ▼                                            │
-│  ┌─────────────────────────────────────────────────────┐│
-│  │      OpenRouter API → Nvidia Nemotron 3 Super       ││
-│  │   https://openrouter.ai/api/v1/chat/completions     ││
-│  └─────────────────────────────────────────────────────┘│
-│  ┌─────────────────────────────────────────────────────┐│
-│  │         OpenAI Whisper API (ASR / Speech)           ││
-│  │      POST /api/speech/transcribe → text output      ││
-│  └─────────────────────────────────────────────────────┘│
-│            │ SQLAlchemy ORM                             │
-│            ▼                                            │
-│  ┌─────────────────────────────────────────────────────┐│
-│  │              SQLite (mindjournal.db)                ││
-│  │  Users │ JournalEntries │ ChatHistory │ Sessions   ││
-│  └─────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────┘
+mindjournal-ai/
+├── backend/
+│   ├── app/
+│   │   ├── main.py              # FastAPI 入口 | FastAPI entry point
+│   │   ├── config.py            # 配置管理 | Configuration
+│   │   ├── database.py          # SQLAlchemy engine | Database setup
+│   │   ├── models.py            # ORM 模型（8张表）| ORM models (8 tables)
+│   │   ├── schemas.py           # Pydantic 模型 | Pydantic models
+│   │   ├── llm_client.py        # 智谱 API 客户端 | Zhipu API client
+│   │   ├── llm_schemas.py       # JSON Schema 定义 | JSON Schema definitions
+│   │   ├── therapy_agent.py     # 治疗代理 | Therapy agent
+│   │   ├── routers/
+│   │   │   ├── precheck.py      # 角色匹配 | Role matching
+│   │   │   ├── journal.py       # 日记 CRUD + 提交 | Journal CRUD + submission
+│   │   │   ├── chat.py          # 首次对话 | First dialogue
+│   │   │   ├── chat_continue.py # 继续对话 | Continue dialogue
+│   │   │   ├── chat_sessions.py # 会话管理 | Session management
+│   │   │   ├── insights.py      # 洞察生成 | Insights generation
+│   │   │   ├── crisis.py        # 危机相关 | Crisis related
+│   │   │   └── multimodal.py   # ASR + OCR | Speech & OCR
+│   │   ├── services/
+│   │   │   ├── stt_service.py   # 语音转文字 | Speech-to-text
+│   │   │   ├── ocr_service.py   # 图像识别 | Image recognition
+│   │   │   └── language_utils.py # 语言工具 | Language utilities
+│   │   └── prompts/             # System prompt 模板 | Prompt templates
+│   ├── scripts/
+│   │   └── generate_finetune_data.py  # 微调数据生成 | Fine-tune data generation
+│   ├── requirements.txt
+│   └── .env
+│
+├── frontend/
+│   ├── src/
+│   │   ├── App.tsx              # 主应用 | Main app
+│   │   ├── api.ts              # API 调用 | API calls
+│   │   ├── types.ts            # 类型定义 | Type definitions
+│   │   ├── styles.css          # 全局样式 | Global styles
+│   │   ├── hooks/
+│   │   │   ├── useVoiceInput.ts     # 语音录制 | Voice recording
+│   │   │   └── useStreamingChat.ts  # 流式对话 | Streaming chat
+│   │   ├── components/          # 组件（30+个）| Components (30+)
+│   │   ├── pages/               # 页面 | Pages
+│   │   ├── store/               # 状态管理 | State management
+│   │   └── utils/               # 工具函数 | Utilities
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── scripts/                     # 工具脚本 | Utility scripts
+├── STARTUP.md                   # 一键启动指南 | Quick start guide
+├── 原理详解.md                  # 原理详解 | Technical details
+├── PPT.md                      # PPT 讲解稿 | PPT script
+├── README.md
+└── ...
 ```
 
 ---
 
-## Tech Stack 技术栈
+## 环境变量 | Environment Variables
 
-| Layer 层级 | Technology 技术 |
-|-------|-----------|
-| Frontend 前端 | React 19, TypeScript, Vite 6 |
-| UI Icons 图标 | Lucide React |
-| Charts 图表 | Recharts |
-| HTTP Client HTTP 客户端 | Axios |
-| Backend 后端 | FastAPI (Python 3.10+) |
-| LLM | OpenRouter API → Nvidia Nemotron 3 Super 120B (free tier 免费版) |
-| Model ID 模型 ID | `nvidia/nemotron-3-super-120b-a12b:free` |
-| **ASR / Speech 语音识别** | **OpenAI Whisper API (`whisper-1`) — Cantonese & Mandarin support** |
-| Database 数据库 | SQLite + SQLAlchemy ORM |
-| Data Validation 数据验证 | Pydantic v2 |
-| Prompt Engineering 提示工程 | JSON Schema structured output + Jinja2 templates |
+在 `backend/.env` 中配置 | Configure in `backend/.env`:
+
+| 变量 | Variable | 必填 | Required | 默认值 | Default | 说明 | Description |
+|------|----------|------|----------|--------|---------|------|-------------|
+| `ZHIPU_API_KEY` | ZHIPU_API_KEY | 是 | Yes | — | — | 智谱 API Key | Zhipu API Key |
+| `ZHIPU_BASE_URL` | ZHIPU_BASE_URL | 否 | No | `https://open.bigmodel.cn/api/paas/v4` | URL | 智谱 API 地址 | Zhipu API URL |
+| `ZHIPU_MODEL` | ZHIPU_MODEL | 否 | No | `glm-4.5-air` | Model | 模型名称 | Model name |
+| `OPENAI_API_KEY` | OPENAI_API_KEY | STT 备选 | STT fallback | — | — | Whisper ASR | Whisper ASR |
 
 ---
 
-## Getting Started 快速开始
+## 快速启动 | Quick Start
 
-### Prerequisites 前置条件
+### 前提条件 | Prerequisites
+
 - **Node.js** 18+
 - **Python** 3.10+
-- **OpenRouter API Key** — get one free at [openrouter.ai](https://openrouter.ai) 在 openrouter.ai 免费获取
-- **OpenAI API Key** — required for Whisper ASR feature 用于语音转文字功能
+- **智谱 API Key** — 从 [bigmodel.cn](https://open.bigmodel.cn) 获取 | Get from [bigmodel.cn](https://open.bigmodel.cn)
 
-### 1. Clone the Repository 克隆仓库
-
-```bash
-git clone <your-repo-url>
-cd mindjournal-ai
-```
-
-### 2. Backend Setup 后端设置
+### 后端 | Backend
 
 ```bash
 cd backend
 
+# 创建虚拟环境 | Create virtual environment
 python -m venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
+.venv\Scripts\activate  # Windows
+source .venv/bin/activate  # macOS / Linux
 
+# 安装依赖 | Install dependencies
 pip install -r requirements.txt
 
-# Add both keys to .env
-echo "OPENROUTER_API_KEY=sk-or-v1-your-key-here" > .env
-echo "OPENAI_API_KEY=sk-your-openai-key-here" >> .env
+# 配置 .env | Configure .env
+# copy .env.example to .env and add your API key
 
+# 启动服务 | Start server
 uvicorn app.main:app --reload --port 8000
 ```
 
-Backend runs at `http://localhost:8000`
-后端运行在 `http://localhost:8000`
+后端运行于 `http://localhost:8000`，API 文档：`http://localhost:8000/docs` | Backend runs at `http://localhost:8000`, docs at `http://localhost:8000/docs`
 
-Interactive API docs at `http://localhost:8000/docs`
-交互式 API 文档在 `http://localhost:8000/docs`
-
-> The SQLite database `backend/mindjournal.db` is auto-created on first run — no manual migration needed.
-> SQLite 数据库 `backend/mindjournal.db` 会在首次运行时自动创建，无需手动迁移。
-
-### 3. Frontend Setup 前端设置
+### 前端 | Frontend
 
 ```bash
 cd frontend
+
 npm install
 npm run dev
 ```
 
-Frontend runs at `http://localhost:5173`
-前端运行在 `http://localhost:5173`
+前端运行于 `http://localhost:5173` | Frontend runs at `http://localhost:5173`
 
-All `/api/*` requests are proxied to `http://localhost:8000` via Vite proxy.
-所有 `/api/*` 请求通过 Vite 代理转发到 `http://localhost:8000`。
+### 一键启动（Windows）| One-Click Start (Windows)
+
+双击运行 `一键启动MindJournal.bat` | Double-click `一键启动MindJournal.bat`
 
 ---
 
-## Project Structure 项目结构
+## API 参考 | API Reference
+
+### 健康检查 | Health Check
+- `GET /api/health` — 健康检查 | Health check
+
+### 日记 | Journal
+- `POST /api/journal` — 日记提交 | Journal submission
+- `GET /api/journal/history` — 日记历史 | Journal history
+- `GET /api/journal/entry/{id}` — 单条日记 | Single entry
+- `PUT /api/journal/{id}` — 更新日记 | Update entry
+- `DELETE /api/journal/{id}` — 删除日记 | Delete entry
+
+### Pre-Check
+- `POST /api/precheck` — 角色匹配 | Role matching
+
+### 对话 | Dialogue
+- `POST /api/chat` — 首次对话 | First dialogue
+- `POST /api/chat/continue` — 继续对话（流式）| Continue dialogue (streaming)
+
+### 会话 | Sessions
+- `GET /api/sessions/{anon_id}` — 会话列表 | Session list
+- `POST /api/sessions` — 创建会话 | Create session
+- `GET /api/sessions/{id}/detail` — 会话详情 | Session detail
+
+### 洞察 | Insights
+- `POST /api/insights` — 生成洞察 | Generate insights
+- `GET /api/insights/{anon_id}` — 获取缓存洞察 | Get cached insights
+
+### 多模态 | Multimodal
+- `POST /api/transcribe` — 语音转文字 | Speech-to-text
+- `POST /api/ocr-diary` — 图片 OCR | Image OCR
+
+### 危机 | Crisis
+- `POST /api/crisis/classify` — 危机分类 | Crisis classification
+- `GET /api/crisis/resources` — 危机资源 | Crisis resources
+
+---
+
+## 主流水 | Streaming
+
+对话使用 Server-Sent Events（SSE）流式输出 | Dialogue uses SSE streaming:
 
 ```
-mindjournal-ai/
-├── README.md
-├── README.zh.md
-├── .env.example
+POST /api/chat/continue
+→ event: chunk
+→ data: {"content": "It sounds like..."}
+
+→ event: done
+→ data: {"round_index": 2, "status": "active"}
+```
+
+---
+
+## 数据库模型 | Database Models
+
+| 表名 | Table | 说明 | Description |
+|------|-------|------|-------------|
+| `users` | users | 匿名用户 | Anonymous users |
+| `prechecks` | prechecks | Pre-Check 记录 | Pre-check records |
+| `journal_entries` | journal_entries | 日记条目 | Journal entries |
+| `therapy_sessions` | therapy_sessions | 治疗会话 | Therapy sessions |
+| `chat_sessions` | chat_sessions | 独立会话 | Standalone sessions |
+| `chat_history` | chat_history | 对话历史 | Chat history |
+| `analysis_history` | analysis_history | 洞察历史 | Insights history |
+| `crisis_alerts` | crisis_alerts | 危机警报 | Crisis alerts |
+
+---
+
+## 微调模型 | Fine-Tuned Models
+
+项目支持使用微调模型提升对话质量 | Project supports fine-tuned models for better dialogue quality.
+
+### 为什么需要微调 | Why Fine-Tuning?
+
+MindJournal AI 是一款心理咨询对话 AI，核心场景是**引导用户记录日记并展开结构化心理治疗对话**。直接调用通用大模型存在以下问题：
+
+| 问题 | 说明 |
+|------|------|
+| **角色一致性差** | 通用模型不知道自己是"心理咨询 AI"，回复风格飘忽 |
+| **多角色切换困难** | 项目有 3 个治疗角色，通用模型难以准确切换 |
+| **语言一致性** | 用户中英文混杂，通用模型有时中英混搭 |
+| **回复长度失控** | 通用模型回复过长或过短，不符合产品规范 |
+| **API 调用成本** | 每次对话都走 API 调用，微调后可部署成本更低 |
+
+因此，我们对智谱 `glm-4-plus` 进行**监督微调（Supervised Fine-Tuning, SFT）**，让它学会 MindJournal AI 的专业对话风格。
+
+### 微调数据集 | Fine-Tuning Dataset
+
+**数据来源**：
+
+```
+总数据量：564 条对话
+├── 真实用户对话（14 条，24.7%）
+│   └── 来源：SQLite 数据库中的 chat_sessions / therapy_sessions
 │
-├── frontend/
-│   ├── src/
-│   │   ├── main.tsx
-│   │   ├── App.tsx
-│   │   ├── api.ts
-│   │   ├── types.ts
-│   │   ├── styles.css
-│   │   └── components/
-│   │       ├── ChatJournalPage.tsx
-│   │       ├── InsightsPage.tsx
-│   │       ├── HistoryPage.tsx
-│   │       ├── JournalDetailPage.tsx
-│   │       ├── JournalPanel.tsx
-│   │       ├── ChatPanel.tsx
-│   │       ├── PrecheckModal.tsx
-│   │       ├── RiskBanner.tsx
-│   │       ├── MoodChartCard.tsx
-│   │       ├── StatCard.tsx
-│   │       ├── InsightSectionCard.tsx
-│   │       ├── AnalysisHistoryCard.tsx
-│   │       ├── HumanSupportCard.tsx
-│   │       └── Sidebar.tsx
-│   ├── package.json
-│   └── vite.config.ts
-│
-└── backend/
-    ├── .env
-    ├── app/
-    │   ├── main.py
-    │   ├── config.py
-    │   ├── database.py
-    │   ├── models.py
-    │   ├── schemas.py
-    │   ├── therapy_agent.py
-    │   ├── llm_client.py
-    │   ├── llm_schemas.py
-    │   ├── routers/
-    │   │   ├── precheck.py
-    │   │   ├── journal.py
-    │   │   ├── insights.py
-    │   │   ├── chat.py
-    │   │   ├── chat_continue.py
-    │   │   └── speech.py          ← ASR / Voice-to-Text
-    │   └── prompts/
-    │       ├── prompt_a_role.txt
-    │       ├── prompt_b1.txt
-    │       ├── prompt_b2.txt
-    │       ├── prompt_b3.txt
-    │       ├── prompt_c_crisis.txt
-    │       ├── prompt_d_insights.txt
-    │       ├── prompt_e_emotion.txt
-    │       ├── prompt_gating_b1_b2.txt
-    │       └── prompt_gating_b2_b3.txt
-    └── requirements.txt
+└── 合成数据（550 条，75.3%）
+    └── 使用 glm-4.6 根据场景模板批量生成
+    └── 三种角色各按比例生成
 ```
 
----
+**三种治疗角色**：
 
-## API Reference API 参考
+| 角色 | System Prompt 核心指令 | 合成条数 | 示例场景 |
+|------|----------------------|---------|---------|
+| **陪我聊聊**（Emotional Support） | 接住情绪，先听先共情，不给建议 | 285 条 | 和妈妈吵架、失恋、工作压力 |
+| **帮我理清**（Clarify Thinking） | 温和提问，帮助理清思路 | 138 条 | 职业选择困难、反复纠结的想法 |
+| **拉开一点看**（Meta Reflection） | 生活比喻，助用户从更高视角观察 | 127 条 | 陷入负面思维循环、价值观探索 |
 
-### `POST /api/precheck`
+**数据格式（JSONL）**：
 
-**Request 请求:**
 ```json
 {
-  "anon_id": "user-uuid",
-  "body_feeling": "tight chest, restless",
-  "need": "to feel heard",
-  "emotion": "anxious"
-}
-```
-**Response 响应:**
-```json
-{
-  "role": "Emotional Support",
-  "confidence": 0.87,
-  "reasons": "User expresses high emotional intensity and is seeking validation..."
+  "messages": [
+    {"role": "system", "content": "你是 MindJournal AI，一位温暖善解人意的心理咨询 AI...\n\n## 当前角色：陪我聊聊\n\n你的首要任务是接住情绪..."},
+    {"role": "user", "content": "今天和妈妈吵架了，心里特别堵"},
+    {"role": "assistant", "content": "听到你说今天和妈妈吵架了，那种心里特别堵的感觉真的很难受..."}
+  ]
 }
 ```
 
----
+**质量控制**：
 
-### `POST /api/speech/transcribe` 🎙️
+- 长度控制在 30–600 字之间
+- 无乱码或异常 Unicode 字符
+- 无"你应该…"、"你必须…"等指令式语气
+- 无固定模板开头（如"谢谢你的分享"）
+- 语言与用户输入一致
 
-Accepts a browser-recorded audio file and returns transcribed text via Whisper.
-接收浏览器录制的音频文件，通过 Whisper 返回转写文字。
+### 微调流程 | Fine-Tuning Process
 
-**Request 请求:** `multipart/form-data`
+**Step 1: 准备数据**
 ```
-file: <audio blob — WebM or WAV>
-```
-**Response 响应:**
-```json
-{ "text": "今日工作好辛苦，好攰..." }
-```
-
----
-
-### `POST /api/journal`
-
-**Request 请求:**
-```json
-{
-  "anon_id": "user-uuid",
-  "content": "I felt really overwhelmed at work today...",
-  "title": "Overwhelmed at work",
-  "mood": "Anxious",
-  "weather": "Cloudy"
-}
-```
-**Response 响应:**
-```json
-{
-  "risk": {
-    "risk_level": 1,
-    "trigger": "General stress without crisis signals",
-    "evidence": ["Work-related stress mentioned"],
-    "confidence": 0.92
-  },
-  "rounds": {
-    "b1": {
-      "text": "It sounds like today at work was really intense for you..."
-    }
-  },
-  "session_id": "sess-uuid",
-  "round_index": 1
-}
+└── finetune_chat.jsonl（694 KB，564 条）
 ```
 
----
-
-### `POST /api/chat/continue`
-
-**Request 请求:**
-```json
-{
-  "session_id": "sess-uuid",
-  "user_message": "Yes, exactly. I just feel like I'm not good enough..."
-}
+**Step 2: 上传数据集**
 ```
-**Response 响应:**
-```json
-{
-  "assistant_message": "That feeling of not being good enough — can you tell me more about when this thought tends to show up?",
-  "round_index": 2,
-  "status": "active",
-  "gating_decision": {
-    "decision": "STAY_IN_B2",
-    "reason": "User is engaging with cognitive content but needs more exploration...",
-    "followup_style": "Clarify automatic thoughts"
-  }
-}
+└── 登录 bigmodel.cn → 模型微调 → 创建数据集
+└── 选择格式：JSONL → 上传文件 → 等待校验
 ```
 
----
+**Step 3: 创建微调任务**
 
-### `POST /api/insights`
+| 参数 | 值 |
+|------|-----|
+| 基础模型 | glm-4-plus |
+| 训练集比例 | 80% / 10% / 10% |
+| Epochs | 2 |
+| Learning Rate | 1e-5 |
+| Max Tokens | 350 |
 
-**Request 请求:**
-```json
-{ "anon_id": "user-uuid" }
+**Step 4: 部署 & 获取模型 ID**
 ```
-**Response 响应:**
-```json
-{
-  "total_entries": 8,
-  "current_streak": 4,
-  "top_mood": "Anxious",
-  "emotion_distribution": { "Anxious": 4, "Calm": 2, "Sad": 2 },
-  "llm_summary": "The past two weeks show a pattern of work-related stress...",
-  "emotional_patterns": "Anxiety peaks mid-week, with relative calm on weekends...",
-  "growth_observations": "User is developing increased emotional vocabulary...",
-  "recommendations": "Consider noting which mornings feel lighter than others...",
-  "affirmation": "You showed up again today, and that takes real courage.",
-  "focus_points": ["What triggers your Tuesday anxiety?", "Which activities bring relief?"]
-}
+└── 平台提供微调后模型 ID
+└── 修改 backend/.env 中的 ZHIPU_MODEL
 ```
+
+### 部署切换 | Deployment
+
+只需修改一行配置即可切换模型：
+
+```env
+# 微调模型
+ZHIPU_MODEL=your-finetuned-model-id
+
+# 通用模型（切回）
+ZHIPU_MODEL=glm-4.6
+```
+
+### 预期效果 | Expected Results
+
+| 维度 | 微调前（通用 glm-4.6） | 微调后 |
+|------|----------------------|--------|
+| 角色一致性 | 偶尔偏离"心理咨询 AI"角色 | 始终稳定在角色内 |
+| 三角色切换 | 容易混淆角色指令 | 准确识别并切换 |
+| 回复长度 | 过长或过短 | 稳定在 50–200 字 |
+| 语言一致性 | 中英文偶尔混搭 | 与用户语言严格一致 |
+
+### 技术架构回顾 | Architecture
+
+```
+                    ┌─────────────────────────────┐
+                    │   用户对话流程               │
+                    └──────────┬──────────────────┘
+                               │
+                    ┌──────────▼──────────────────┐
+                    │  Pre-Check 角色匹配         │
+                    │  (陪我聊聊/帮我理清/拉开一点看)│
+                    └──────────┬──────────────────┘
+                               │
+         ┌─────────────────────┼─────────────────────┐
+         │                     │                     │
+┌────────▼────────┐  ┌────────▼────────┐  ┌────────▼────────┐
+│  日记 + B1 反思  │  │   B2 认知澄清    │  │  B3 元反思/ACT  │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+         │                     │                     │
+         └─────────────────────┼─────────────────────┘
+                               │
+                    ┌──────────▼──────────────────┐
+                    │  微调后的 glm-4-plus          │
+                    │  (角色一致 + 风格稳定)         │
+                    └──────────────────────────────┘
+```
+
+### 隐私与伦理 | Privacy & Ethics
+
+- **数据匿名化**：训练数据中不包含任何可识别个人身份的信息
+- **安全边界**：AI 仅提供情感支持，不提供临床诊断或药物治疗建议
+- **危机检测**：内置三级风险检测，高风险时显示人工支持资源
+- **本地存储**：所有用户数据存储在本地 SQLite，不上传第三方
 
 ---
 
-## Database Schema 数据库结构
+## 生产部署 | Production Deployment
 
-| Table 表 | Description 描述 |
-|-------|-------------|
-| `users` | Anonymous user records (`anon_id` = UUID) 匿名用户记录 |
-| `prechecks` | Pre-check submissions and role assignments 提交前检查与角色分配 |
-| `journal_entries` | Journal content, mood, weather, emotion label, risk level 日记内容、心情、天气、情绪标签、风险等级 |
-| `chat_history` | Individual chat round messages 聊天回合消息 |
-| `therapy_sessions` | Session state: round_index, status, conversation history 会话状态：回合索引、状态、对话历史 |
-| `analysis_history` | Past insights reports 历史洞察报告 |
+### 构建前端 | Build Frontend
 
-All tables include `created_at` timestamps. No personal identifying information is stored.
-所有表都包含 `created_at` 时间戳。不存储任何个人身份信息。
-
----
-
-## Production Deployment 生产环境部署
-
-Build the frontend 构建前端:
 ```bash
 cd frontend
 npm run build
 ```
 
-Nginx config Nginx 配置:
+### Nginx 配置 | Nginx Config
+
 ```nginx
 server {
     listen 80;
-
-    location / {
-        root /path/to/frontend/dist;
-        try_files $uri $uri/ /index.html;
-    }
+    root /path/to/frontend/dist;
+    try_files $uri $uri/ /index.html;
 
     location /api/ {
         proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
     }
 }
 ```
 
----
+### Railway 部署 | Railway Deployment
 
-## Safety & Ethical Design 安全与伦理设计
+项目包含 `railway.json` 配置，支持一键部署到 Railway：
 
-1. **No diagnosis 不做诊断** — AI avoids all clinical diagnostic language AI 避免使用所有临床诊断性语言
-2. **No medication advice 不提供用药建议** — prompts forbid medication or treatment recommendations 提示词禁止药物或治疗建议
-3. **Crisis escalation 危机升级** — Level 3 risk triggers immediate display of human support resources 等级 3 风险立即显示人工支持资源
-4. **No self-harm methods 不讨论自残方法** — AI is instructed never to discuss means of self-harm AI 被指示绝不能讨论自残方式
-5. **Anonymous by default 默认匿名** — no email, name, or identifying data collected 不收集邮箱、姓名或任何可识别数据
+```bash
+# 1. 连接 GitHub 仓库
+# 2. Railway 自动检测 Dockerfile 构建
+# 3. 配置环境变量
+ZHIPU_API_KEY=your-api-key
+ZHIPU_MODEL=glm-4.5-air
+```
 
-> **Disclaimer 免责声明:** This application does not replace professional mental health care. If you are experiencing a mental health crisis, please contact emergency services or a qualified mental health professional.
-> 本应用不能替代专业心理健康护理。若您正处于心理健康危机中，请联系紧急服务或合格的心理健康专业人员。
+### Vercel 部署 | Vercel Deployment
 
----
+项目包含 `vercel.json` 配置 | Project includes `vercel.json` config.
 
-## Configuration 配置
-
-| Variable 变量 | Default 默认值 | Description 描述 |
-|----------|---------|-------------|
-| `OPENROUTER_API_KEY` | *(required 必填)* | Your OpenRouter API key 您的 OpenRouter API 密钥 |
-| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | OpenRouter base URL OpenRouter 基础 URL |
-| `NEMOTRON_MODEL` | `nvidia/nemotron-3-super-120b-a12b:free` | Model identifier 模型标识符 |
-| `OPENAI_API_KEY` | *(required for ASR 语音功能必填)* | OpenAI key for Whisper transcription 用于 Whisper 语音转文字 |
-| `DATABASE_URL` | `sqlite:///./mindjournal.db` | Database connection string 数据库连接字符串 |
+```bash
+npm i -g vercel
+cd backend && vercel
+cd frontend && vercel
+```
 
 ---
 
-## License 许可证
+## 相关文档 | Related Documents
 
-This project is licensed under the [MIT License](https://opensource.org/licenses/MIT).
-本项目基于 [MIT 许可证](https://opensource.org/licenses/MIT) 开源。
+- [STARTUP.md](./STARTUP.md) — 一键启动指南 | Quick start guide
+- [原理详解.md](./原理详解.md) — 技术原理详解 | Technical details
+- [PPT.md](./PPT.md) — PPT 讲解稿 | PPT script
+
+---
+
+## 当前状态 | Current Status
+
+### 已完成 | Completed
+- 日记记录与分析 | Journal recording & analysis
+- Pre-Check 角色匹配 | Pre-check role matching
+- 三阶段治疗对话 | Three-stage therapeutic dialogue
+- 心理健康洞察 | Mental health insights
+- 语音输入 | Voice input
+- 手写 OCR | Handwriting OCR
+- 危机检测 | Crisis detection
+- 日记历史 | Journal history
+- 独立聊天页面 | Standalone chat
+- 会话持久化 | Session persistence
+- 支持资源系统 | Support resources
+
+### 规划中 | In Progress
+- 更丰富的洞察可视化 | Enhanced insights visualization
+- 多语言界面 | Multi-language UI
+- 导出功能 | Export functionality
+
+---
+
+## License
+
+MIT License
